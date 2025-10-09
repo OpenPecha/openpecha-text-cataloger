@@ -58,3 +58,35 @@ export const fetchInstance = async (id: string): Promise<OpenPechaTextInstance> 
   const response = await fetch(`${API_URL}/text/instances/${id}`);
   return response.json();
 };
+
+// Real API function for creating text instances
+export const createTextInstance = async (textId: string, instanceData: {
+  metadata?: {
+    type?: string;
+    copyright?: string;
+    bdrc?: string;
+    colophon?: string;
+    incipit_title?: { [key: string]: string };
+  };
+  annotation?: Array<{
+    span: { start: number; end: number };
+    index: number;
+    alignment_index: number[];
+  }>;
+  content: string;
+}): Promise<OpenPechaTextInstance> => {
+  const response = await fetch(`${API_URL}/text/${textId}/instances`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(instanceData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
+  }
+
+  return await response.json();
+};

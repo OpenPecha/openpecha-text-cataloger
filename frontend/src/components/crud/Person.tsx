@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { usePersons, useCreatePerson, useUpdatePerson, useDeletePerson } from '@/hooks/usePersons';
+import { usePersons, useCreatePerson, useUpdatePerson } from '@/hooks/usePersons';
 import type { Person, CreatePersonData } from '@/types/person';
+import { Button } from '../ui/button';
 
 const PersonCRUD = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'edit'>('list');
@@ -21,7 +22,6 @@ const PersonCRUD = () => {
   const { data: persons = [], isLoading, error, refetch } = usePersons(pagination);
   const createPersonMutation = useCreatePerson();
   const updatePersonMutation = useUpdatePerson();
-  const deletePersonMutation = useDeletePerson();
 
   // Helper function to get the main name
   const getMainName = (person: Person): string => {
@@ -35,16 +35,6 @@ const PersonCRUD = () => {
     return person.alt_names.map(altName => Object.values(altName)[0]).slice(0, 3);
   };
 
-  const handleEdit = (person: Person) => {
-    setSelectedPerson(person);
-    setFormData({
-      name: person.name,
-      alt_names: person.alt_names,
-      bdrc: person.bdrc,
-      wiki: person.wiki
-    });
-    setActiveTab('edit');
-  };
 
   const handleCreate = () => {
     setSelectedPerson(null);
@@ -57,18 +47,25 @@ const PersonCRUD = () => {
     setActiveTab('create');
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this person?')) {
-      deletePersonMutation.mutate(id);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!formData.name.en && !formData.name.bo) {
+      alert('Please provide at least one name (English or Tibetan)');
+      return;
+    }
+    
     if (activeTab === 'create') {
-      createPersonMutation.mutate(formData, {
+      // Clean up alt_names by removing id fields before sending to API
+      const cleanFormData = {
+        ...formData,
+        alt_names: formData.alt_names.map(({ id, ...altName }) => altName)
+      };
+      createPersonMutation.mutate(cleanFormData, {
         onSuccess: () => {
+          alert('Person created successfully!');
           setActiveTab('list');
           setFormData({
             name: { bo: '', en: '' },
@@ -76,6 +73,9 @@ const PersonCRUD = () => {
             bdrc: '',
             wiki: null
           });
+        },
+        onError: (error) => {
+          alert(`Error creating person: ${error.message}`);
         }
       });
     } else if (activeTab === 'edit' && selectedPerson) {
@@ -84,8 +84,12 @@ const PersonCRUD = () => {
         ...formData
       }, {
         onSuccess: () => {
+          alert('Person updated successfully!');
           setActiveTab('list');
           setSelectedPerson(null);
+        },
+        onError: (error) => {
+          alert(`Error updating person: ${error.message}`);
         }
       });
     }
@@ -106,6 +110,29 @@ const PersonCRUD = () => {
         [name]: value
       }));
     }
+  };
+
+  const addAltName = () => {
+    setFormData(prev => ({
+      ...prev,
+      alt_names: [...prev.alt_names, { en: '', bo: '', id: Date.now().toString() }]
+    }));
+  };
+
+  const removeAltName = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      alt_names: prev.alt_names.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateAltName = (index: number, lang: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      alt_names: prev.alt_names.map((altName, i) => 
+        i === index ? { ...altName, [lang]: value } : altName
+      )
+    }));
   };
 
   const handleBackToList = () => {
@@ -150,22 +177,18 @@ const PersonCRUD = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Person Management</h2>
         <div className="flex space-x-2">
-          <button
+          <Button
+          variant={activeTab === 'list' ? 'default' : 'outline'}
             onClick={() => setActiveTab('list')}
-            className={`px-4 py-2 rounded ${
-              activeTab === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
           >
             List
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleCreate}
-            disabled={true}
-            className="px-4 py-2 rounded bg-gray-300 text-gray-500 cursor-not-allowed"
-            title="Create/Edit/Delete operations not yet implemented in backend"
+            variant={activeTab === 'create' ? 'default' : 'outline'}
           >
-            Create (Coming Soon)
-          </button>
+            Create Person
+          </Button>
         </div>
       </div>
 
@@ -174,13 +197,16 @@ const PersonCRUD = () => {
         <div className="space-y-4">
           {/* Filters and Controls */}
           <div className="bg-white rounded-lg shadow-md p-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="flex items-center justify-between w-full gap-4 mb-4">
+             <div className="flex-1 flex gap-3">
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Limit</label>
+                <label htmlFor="limit" className="block text-sm font-medium text-gray-700 mb-1">Limit</label>
                 <select
+                  id="limit"
                   value={pagination.limit}
                   onChange={(e) => handlePaginationChange({ limit: parseInt(e.target.value), offset: 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value={5}>5 per page</option>
                   <option value={10}>10 per page</option>
@@ -189,8 +215,9 @@ const PersonCRUD = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                <label htmlFor="nationality" className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
                 <input
+                  id="nationality"
                   type="text"
                   value={pagination.nationality}
                   onChange={(e) => handlePaginationChange({ nationality: e.target.value, offset: 0 })}
@@ -199,8 +226,9 @@ const PersonCRUD = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
+                <label htmlFor="occupation" className="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
                 <input
+                  id="occupation"
                   type="text"
                   value={pagination.occupation}
                   onChange={(e) => handlePaginationChange({ occupation: e.target.value, offset: 0 })}
@@ -208,21 +236,15 @@ const PersonCRUD = () => {
                   placeholder="Filter by occupation"
                 />
               </div>
-              <div className="flex items-end">
-                <button
-                  onClick={() => refetch()}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-                >
-                  Refresh
-                </button>
               </div>
+              
             </div>
             
             {/* Pagination Info */}
             <div className="flex justify-between items-center text-sm text-gray-600">
               <p>Showing {pagination.offset + 1} to {pagination.offset + persons.length} of results</p>
               <div className="flex space-x-2">
-                <button
+                <Button
                   onClick={handlePrevPage}
                   disabled={pagination.offset === 0}
                   className={`px-3 py-1 rounded ${
@@ -232,8 +254,8 @@ const PersonCRUD = () => {
                   }`}
                 >
                   Previous
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleNextPage}
                   disabled={persons.length < pagination.limit}
                   className={`px-3 py-1 rounded ${
@@ -243,14 +265,14 @@ const PersonCRUD = () => {
                   }`}
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {persons.map((person: Person) => (
-              <div key={person.id} className="bg-white rounded-lg shadow-md p-4 border">
+              <div key={`person-card-${person.id}`} className="bg-white rounded-lg shadow-md p-4 border">
                 <h3 className="font-semibold text-gray-800 mb-2">{getMainName(person)}</h3>
                 <div className="space-y-1 text-sm text-gray-600">
 
@@ -265,28 +287,12 @@ const PersonCRUD = () => {
                     <p className="text-gray-600 text-sm font-medium mb-1">Alternative Names:</p>
                     <ul className="text-xs text-gray-500 space-y-1">
                       {getAltNames(person).map((altName, index) => (
-                        <li key={index} className="truncate">• {altName}</li>
+                        <li key={`alt-display-${person.id}-${index}`} className="truncate">• {altName}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                <div className="mt-3 flex space-x-2">
-                  <button
-                    disabled={true}
-                    className="bg-gray-300 text-gray-500 px-3 py-1 rounded text-sm cursor-not-allowed"
-                    title="Edit operation not yet implemented in backend"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    disabled={true}
-                    className="bg-gray-300 text-gray-500 px-3 py-1 rounded text-sm cursor-not-allowed"
-                    title="Delete operation not yet implemented in backend"
-                  >
-                    Delete
-                  </button>
-                </div>
               </div>
             ))}
           </div>
@@ -301,8 +307,9 @@ const PersonCRUD = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name (Tibetan)</label>
+                <label htmlFor="name_bo" className="block text-sm font-medium text-gray-700 mb-1">Name (Tibetan)</label>
                 <input
+                  id="name_bo"
                   type="text"
                   name="name_bo"
                   value={formData.name.bo || ''}
@@ -312,8 +319,9 @@ const PersonCRUD = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name (English)</label>
+                <label htmlFor="name_en" className="block text-sm font-medium text-gray-700 mb-1">Name (English)</label>
                 <input
+                  id="name_en"
                   type="text"
                   name="name_en"
                   value={formData.name.en || ''}
@@ -323,9 +331,50 @@ const PersonCRUD = () => {
                 />
               </div>
             </div>
+            
+            {/* Alternative Names Section */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">BDRC ID</label>
+              <div className="flex justify-between items-center mb-2">
+                <span className="block text-sm font-medium text-gray-700">Alternative Names</span>
+                <button
+                  type="button"
+                  onClick={addAltName}
+                  className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                >
+                  Add Alternative Name
+                </button>
+              </div>
+              {formData.alt_names.map((altName, index) => (
+                <div key={altName.id || `alt-name-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={altName.en || ''}
+                    onChange={(e) => updateAltName(index, 'en', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="English alternative name"
+                  />
+                  <input
+                    type="text"
+                    value={altName.bo || ''}
+                    onChange={(e) => updateAltName(index, 'bo', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Tibetan alternative name"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAltName(index)}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            <div>
+              <label htmlFor="bdrc" className="block text-sm font-medium text-gray-700 mb-1">BDRC ID</label>
               <input
+                id="bdrc"
                 type="text"
                 name="bdrc"
                 value={formData.bdrc}
@@ -335,8 +384,9 @@ const PersonCRUD = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Wikipedia URL</label>
+              <label htmlFor="wiki" className="block text-sm font-medium text-gray-700 mb-1">Wikipedia URL</label>
               <input
+                id="wiki"
                 type="url"
                 name="wiki"
                 value={formData.wiki || ''}

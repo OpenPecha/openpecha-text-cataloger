@@ -12,7 +12,7 @@ const fetchPersons = async (params?: { limit?: number; offset?: number; national
   if (params?.nationality) queryParams.append('nationality', params.nationality);
   if (params?.occupation) queryParams.append('occupation', params.occupation);
   
-  const url = `${API_URL}/person${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const url = queryParams.toString() ? `${API_URL}/person?${queryParams.toString()}` : `${API_URL}/person`;
   const response = await fetch(url);
   
   if (!response.ok) {
@@ -24,13 +24,20 @@ const fetchPersons = async (params?: { limit?: number; offset?: number; national
 };
 
 const createPerson = async (data: CreatePersonData): Promise<Person> => {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  return {
-    id: Date.now().toString(),
-    ...data,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  const response = await fetch(`${API_URL}/person`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.details || `HTTP error! status: ${response.status}`);
+  }
+  
+  return await response.json();
 };
 
 const updatePerson = async (data: UpdatePersonData): Promise<Person> => {

@@ -1,5 +1,6 @@
 export interface AltName {
   [lang: string]: string;
+  id?: string;
 }
 
 export interface PersonName {

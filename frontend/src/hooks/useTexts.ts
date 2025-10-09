@@ -1,4 +1,4 @@
-import { createText, fetchInstance, fetchTextInstances, fetchTexts } from '@/api/texts';
+import { createText, createTextInstance, fetchInstance, fetchTextInstances, fetchTexts } from '@/api/texts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 
@@ -40,6 +40,21 @@ export const useCreateText = () => {
     },
     onError: (error) => {
       console.error('Error creating text:', error);
+    }
+  });
+};
+
+export const useCreateTextInstance = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ textId, instanceData }: { textId: string; instanceData: any }) => 
+      createTextInstance(textId, instanceData),
+    onSuccess: (_, { textId }) => {
+      queryClient.invalidateQueries({ queryKey: ['textInstance', textId] });
+    },
+    onError: (error) => {
+      console.error('Error creating text instance:', error);
     }
   });
 };

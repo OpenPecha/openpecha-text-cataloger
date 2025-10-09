@@ -38,7 +38,7 @@ export interface SegmentationAnnotation {
 }
 
 export interface Annotations {
-  segmentation: SegmentationAnnotation[];
+  [key: string]: unknown[];
 }
 
 export interface OpenPechaTextInstance {

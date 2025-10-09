@@ -258,6 +258,7 @@ router.post('/', async (req, res) => {
   }
 });
 
+
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   const apiUrl = `${API_ENDPOINT}/texts/${id}`;
@@ -281,6 +282,153 @@ router.get("/:id/instances", async (req, res) => {
   res.json(response.data);
 });
 
+/**
+ * @swagger
+ * /text/{id}/instances:
+ *   post:
+ *     summary: Create a new text instance
+ *     description: Creates a new instance for a specific text in the OpenPecha API
+ *     tags: [Texts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The text ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               metadata:
+ *                 type: object
+ *                 properties:
+ *                   type:
+ *                     type: string
+ *                     description: Instance type (e.g., diplomatic)
+ *                   copyright:
+ *                     type: string
+ *                     description: Copyright information
+ *                   bdrc:
+ *                     type: string
+ *                     description: BDRC identifier
+ *                   colophon:
+ *                     type: string
+ *                     description: Colophon text
+ *                   incipit_title:
+ *                     type: object
+ *                     properties:
+ *                       en:
+ *                         type: string
+ *                         description: English incipit title
+ *                       bo:
+ *                         type: string
+ *                         description: Tibetan incipit title
+ *               annotation:
+ *                 type: array
+ *                 description: Annotation data
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     span:
+ *                       type: object
+ *                       properties:
+ *                         start:
+ *                           type: integer
+ *                         end:
+ *                           type: integer
+ *                     index:
+ *                       type: integer
+ *                     alignment_index:
+ *                       type: array
+ *                       items:
+ *                         type: integer
+ *               content:
+ *                 type: string
+ *                 description: The text content
+ *             example:
+ *               metadata:
+ *                 type: "diplomatic"
+ *                 copyright: "public"
+ *                 bdrc: "W123456"
+ *                 colophon: "Sample colophon text"
+ *                 incipit_title:
+ *                   en: "Opening words"
+ *                   bo: "དབུ་ཚིག"
+ *               annotation:
+ *                 - span:
+ *                     start: 0
+ *                     end: 20
+ *                   index: 0
+ *                   alignment_index: [0]
+ *               content: "This is the text content to be stored"
+ *     responses:
+ *       201:
+ *         description: Text instance created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               description: Created instance data
+ *       400:
+ *         description: Bad request - invalid input data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post("/:id/instances", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const instanceData = req.body;
+    
+    // Validate required fields
+    console.log(instanceData?.annotation)
+    if (!instanceData.content) {
+      return res.status(400).json({
+        error: 'Missing required field',
+        details: 'content is required'
+      });
+    }
+
+    const apiUrl = `${API_ENDPOINT}/texts/${id}/instances`;
+    console.log('Creating text instance at:', apiUrl);
+    console.log('Instance data:', JSON.stringify(instanceData, null, 2));
+
+    const response = await axios.post(apiUrl, instanceData, {
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json'
+      }
+    });
+
+    res.status(201).json(response.data);
+  } catch (error) {
+    console.error('Error creating text instance:', error.message);
+    if (error.response) {
+      // Forward the error response from OpenPecha API
+      res.status(error.response.status).json({
+        error: 'Failed to create text instance in OpenPecha API',
+        details: error.response.data || error.message
+      });
+    } else {
+      res.status(500).json({
+        error: 'Failed to create text instance',
+        details: error.message
+      });
+    }
+  }
+});
+
 router.get("/instances/:instanceId", async (req, res) => {
   const { instanceId } = req.params;
   const apiUrl = `${API_ENDPOINT}/instances/${instanceId}`;
@@ -291,5 +439,8 @@ router.get("/instances/:instanceId", async (req, res) => {
   });
   res.json(response.data);
 });
+
+
+
 
 module.exports = router;

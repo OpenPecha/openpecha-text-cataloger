@@ -9,7 +9,7 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { id: 'texts', label: 'Texts', path: '/texts', icon: '📚' },
+  { id: 'texts', label: 'Texts', path: '/texts', icon: '📖' },
   { id: 'persons', label: 'Persons', path: '/persons', icon: '👤' },
 ];
 
@@ -19,8 +19,7 @@ const Sidebar = () => {
   return (
     <div className="w-64 bg-gray-800 text-white min-h-screen">
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-white">OpenPecha Manager</h1>
-        <p className="text-gray-400 text-sm mt-1">CRUD Operations</p>
+        <h1 className="text-2xl font-bold text-white">Text Cataloger</h1>
       </div>
       
       <nav className="mt-6">
