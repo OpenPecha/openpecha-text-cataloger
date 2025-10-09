@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTexts, useCreateText } from '@/hooks/useTexts';
 import type { OpenPechaText } from '@/types/text';
+import { Link } from 'react-router-dom';
 
 const TextCRUD = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'edit'>('list');
@@ -194,9 +195,9 @@ const TextCRUD = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {texts.map((text: OpenPechaText) => (
               <div key={text.id} className="bg-white rounded-lg shadow-md p-4 border">
-                <h3 className="font-semibold text-gray-800 mb-2 truncate">
+                <Link to={`/texts/${text.id}/instance`} className="font-semibold text-gray-800 mb-2 truncate">
                   {text.title?.[text.language] || 'Untitled'}
-                </h3>
+                </Link>
                 <div className="space-y-1 text-sm text-gray-600">
                   <p><span className="font-medium">Language:</span> {text.language}</p>
                   <p><span className="font-medium">Type:</span> {text.type}</p>

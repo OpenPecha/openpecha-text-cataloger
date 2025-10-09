@@ -11,8 +11,6 @@ interface SidebarItem {
 const sidebarItems: SidebarItem[] = [
   { id: 'texts', label: 'Texts', path: '/texts', icon: '📚' },
   { id: 'persons', label: 'Persons', path: '/persons', icon: '👤' },
-  { id: 'collections', label: 'Collections', path: '/collections', icon: '📁' },
-  { id: 'works', label: 'Works', path: '/works', icon: '📖' },
 ];
 
 const Sidebar = () => {

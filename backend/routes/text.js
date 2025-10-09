@@ -269,4 +269,27 @@ router.get("/:id", async (req, res) => {
   res.json(response.data);
 });
 
+router.get("/:id/instances", async (req, res) => {
+  const { id } = req.params;
+  const apiUrl = `${API_ENDPOINT}/texts/${id}/instances`;
+
+  const response = await axios.get(apiUrl, {
+    headers: {
+      'accept': 'application/json'
+    }
+  });
+  res.json(response.data);
+});
+
+router.get("/instances/:instanceId", async (req, res) => {
+  const { instanceId } = req.params;
+  const apiUrl = `${API_ENDPOINT}/instances/${instanceId}`;
+  const response = await axios.get(apiUrl, {
+    headers: {
+      'accept': 'application/json'
+    }
+  });
+  res.json(response.data);
+});
+
 module.exports = router;

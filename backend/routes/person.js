@@ -131,6 +131,8 @@ router.get('/', async (req, res) => {
     // Build query parameters for OpenPecha API (without pagination, since endpoint doesn't support it)
     const queryParams = new URLSearchParams();
     if (nationality) queryParams.append('nationality', nationality);
+    if (limit) queryParams.append('limit', limit);
+    if (offset) queryParams.append('offset', offset);
     if (occupation) queryParams.append('occupation', occupation);
 
     const apiUrl = `${API_ENDPOINT}/persons${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
@@ -141,19 +143,8 @@ router.get('/', async (req, res) => {
       }
     });
 
-    // Do pagination in code
-    const allPersons = response.data || [];
-    const total = Array.isArray(allPersons) ? allPersons.length : 0;
-    const paginatedResults = Array.isArray(allPersons)
-      ? allPersons.slice(Number(offset), Number(offset) + Number(limit))
-      : [];
 
-    res.json({
-      results: paginatedResults,
-      count: total,
-      limit: Number(limit),
-      offset: Number(offset)
-    });
+    res.json(response.data);
   } catch (error) {
     console.error('Error fetching persons:', error.message);
     res.status(500).json({

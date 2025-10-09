@@ -25,3 +25,33 @@ export interface OpenPechaText {
   type: string;
   wiki: string | null;
 }
+
+export interface Span {
+  end: number;
+  start: number;
+}
+
+export interface SegmentationAnnotation {
+  id: string;
+  index: number;
+  span: Span;
+}
+
+export interface Annotations {
+  segmentation: SegmentationAnnotation[];
+}
+
+export interface OpenPechaTextInstance {
+  alignment_sources: string[];
+  alignment_targets: string[];
+  alt_incipit_titles: string | null;
+  annotations: Annotations;
+  base: string;
+  bdrc: string | null;
+  colophon: string | null;
+  copyright: string;
+  id: string;
+  incipit_title: string | null;
+  type: string;
+  wiki: string | null;
+}
