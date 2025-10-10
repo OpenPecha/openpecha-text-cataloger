@@ -163,22 +163,19 @@ const TextCRUD = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Text Management</h2>
         <div className="flex space-x-2">
-          <button
+          <Button
             onClick={() => setActiveTab('list')}
-            className={`px-4 py-2 rounded ${
-              activeTab === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
+            variant={activeTab === 'list' ? 'default' : 'outline'}
           >
             List
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleCreate}
-            className={`px-4 py-2 rounded ${
-              activeTab === 'create' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
+            variant={activeTab === 'create' ? 'default' : 'outline'}
+
           >
             Create
-          </button>
+          </Button>
         </div>
       </div>
 
