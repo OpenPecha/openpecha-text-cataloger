@@ -22,6 +22,10 @@ export const fetchTexts = async (params?: { limit?: number; offset?: number; lan
   const data = await response.json();
   return data.results || data || [];
 };
+export const fetchText = async (id: string): Promise<OpenPechaText> => {
+  const response = await fetch(`${API_URL}/text/${id}`);
+  return response.json();
+};
 
 // Real API function for creating texts
 export const createText = async (textData: {

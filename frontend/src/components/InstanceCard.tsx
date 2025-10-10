@@ -108,6 +108,7 @@ const InstanceCard: React.FC<InstanceCardProps> = ({ instance }) => {
               <div key={annotationType} className="border border-gray-200 rounded">
                 <Button
                   onClick={() => toggleAnnotation(annotationType)}
+                  variant="ghost"
                   className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center gap-2">

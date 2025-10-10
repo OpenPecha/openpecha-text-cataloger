@@ -1,4 +1,4 @@
-import { useTextInstance, useCreateTextInstance } from '@/hooks/useTexts';
+import { useTextInstance, useCreateTextInstance, useText } from '@/hooks/useTexts';
 import { useParams } from 'react-router-dom';
 import TextInstanceCard from '@/components/TextInstanceCard';
 import type { OpenPechaTextInstance } from '@/types/text';
@@ -38,9 +38,8 @@ function TextInstanceCRUD() {
     refetch,
     isRefetching
   } = useTextInstance(id || '');
-  
+  const { data: text = [] } = useText(id || '');
   const createInstanceMutation = useCreateTextInstance();
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
@@ -250,25 +249,25 @@ function TextInstanceCRUD() {
     );
   }
 
+  const title = text.title.bo || text.title.en || text.title.sa || 'Untitled';
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Text Instances</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
           <p className="text-gray-600 mt-1">
             Found {instances.length} instance{instances.length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex space-x-3">
-          <button
+          <Button
             onClick={openModal}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Create Instance
-          </button>
+          </Button>
    
         </div>
       </div>
@@ -286,8 +285,8 @@ function TextInstanceCRUD() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">Create Text Instance</h3>
               <Button
+              variant={'ghost'}
                 onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -491,17 +490,16 @@ function TextInstanceCRUD() {
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-3 pt-4">
-                <button
+                <Button
                   type="button"
                   onClick={closeModal}
                   className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createInstanceMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                 >
                   {createInstanceMutation.isPending ? (
                     <>
@@ -511,7 +509,7 @@ function TextInstanceCRUD() {
                   ) : (
                     'Create Instance'
                   )}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

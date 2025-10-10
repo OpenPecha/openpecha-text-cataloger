@@ -16,12 +16,9 @@ const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center gradient-primary">
-              <Book className="w-6 h-6 text-white" />
-          </div>
+              <img src="/icon.png" alt="OpenPecha" className="w-10 h-10" />
             <div>
-              <h1 className="text-xl font-bold text-foreground">OpenPecha</h1>
-              <p className="text-xs text-muted-foreground">Text Cataloger</p>
+              <h1 className="">Text Cataloger</h1>
             </div>
           </Link>
           

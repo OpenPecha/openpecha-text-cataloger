@@ -47,9 +47,9 @@ const TextListCard = ({ text, onEdit }: TextListCardProps) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow duration-200">
+    <Card className="hover:shadow-lg transition-shadow duration-200 gap-2">
       <CardHeader>
-        <div className="flex items-center gap-2 overflow-hidden text-wrap flex-wrap">
+        <div className="flex items-center gap-2 overflow-hidden">
           <Book className="w-5 h-5 text-gray-500  flex-shrink-0" />
           <CardTitle className="text-lg w-full ">
             <Link 

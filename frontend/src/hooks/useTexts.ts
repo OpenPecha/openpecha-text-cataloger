@@ -1,4 +1,4 @@
-import { createText, createTextInstance, fetchInstance, fetchTextInstances, fetchTexts } from '@/api/texts';
+import { createText, createTextInstance, fetchInstance, fetchText, fetchTextInstances, fetchTexts } from '@/api/texts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 
@@ -10,6 +10,14 @@ export const useTexts = (params?: { limit?: number; offset?: number; language?: 
     select: (data) => data.results || data || [],
     staleTime: 5 * 60 * 1000,
     retry: 1,
+  });
+};
+
+export const useText = (id: string) => {
+  return useQuery({
+    queryKey: ['text', id],
+    queryFn: () => fetchText(id),
+    select: (data) => data.results || data || [],
   });
 };
 
