@@ -10,21 +10,20 @@ function App() {
   return (
     <div className="min-h-screen font-monlam-2 text-xl">
       <Headers/>
+      <div className='container mx-auto py-16'>
+
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/texts" element={
-            <div className='container mx-auto py-16'>
             <TextCRUD />
-            </div>
           } />
           <Route path="/persons" element={
-            <div className='container mx-auto py-16'>
               <PersonCRUD />
-              </div>
               } />
           <Route path="/texts/:id/instance" element={<TextInstanceCRUD />} />
           <Route path="/instances/:id" element={<Instance />} />
         </Routes>
+        </div>
     </div>
   );
 }

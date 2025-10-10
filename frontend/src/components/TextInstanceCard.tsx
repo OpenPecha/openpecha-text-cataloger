@@ -35,7 +35,7 @@ const TextInstanceCard: React.FC<TextInstanceCardProps> = ({ instance }) => {
 
   const title=instance.incipit_title?instance.incipit_title?.bo:instance.colophon;
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
+    <Link to={`/instances/${instance.id}`} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
@@ -44,9 +44,7 @@ const TextInstanceCard: React.FC<TextInstanceCardProps> = ({ instance }) => {
           </h3>
           <p className="text-sm text-gray-500 font-mono">
             ID: 
-            <Link to={`/instances/${instance.id}`}>
             {instance.id}
-            </Link>
           </p>
         </div>
         <div className="flex gap-2">
@@ -59,7 +57,7 @@ const TextInstanceCard: React.FC<TextInstanceCardProps> = ({ instance }) => {
         </div>
       </div>
      
-    </div>
+    </Link>
   );
 };
 
