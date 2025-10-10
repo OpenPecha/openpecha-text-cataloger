@@ -45,8 +45,9 @@
   --error-color: #e74c3c;
   --success-color: #2ecc71;
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+ 
+  --background: #f7f6f1;
+  --foreground: 42 35% 96%;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -79,6 +80,9 @@
   --font-monlam: 'monlam', sans-serif;
   --color-editor-background: #f8fafc;
   --color-footnote-background: #738596;
+
+  
+
 }
 
 @theme {
@@ -94,7 +98,6 @@ body {
   font-family: 'google-sans', 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   line-height: 1.6;
   color: var(--text-color);
-  overflow: hidden;
 }
 
 #root{
@@ -136,6 +139,47 @@ body {
   --sidebar-ring: oklch(0.556 0 0);
   --color-editor-background: #40474F;
   --color-footnote-background: #0b77f2;
+
+
+  --background: 0 10% 8%;
+  --foreground: 42 35% 96%;
+
+  --card: 0 5% 12%;
+  --card-foreground: 42 35% 96%;
+
+  --popover: 0 5% 12%;
+  --popover-foreground: 42 35% 96%;
+
+  --primary: 355 70% 45%;
+  --primary-foreground: 42 35% 96%;
+
+  --secondary: 45 85% 55%;
+  --secondary-foreground: 0 10% 8%;
+
+  --muted: 0 5% 18%;
+  --muted-foreground: 42 15% 65%;
+
+  --accent: 180 45% 45%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 0 5% 18%;
+  --input: 0 5% 18%;
+  --ring: 355 70% 45%;
+  
+  --gradient-primary: linear-gradient(135deg, hsl(355 70% 45%), hsl(355 55% 30%));
+  --gradient-gold: linear-gradient(135deg, hsl(45 85% 55%), hsl(40 75% 50%));
+  --shadow-elegant: 0 10px 30px -10px hsl(355 70% 45% / 0.4);
+  --sidebar-background: 240 5.9% 10%;
+  --sidebar-foreground: 240 4.8% 95.9%;
+  --sidebar-primary: 224.3 76.3% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
 }
 
 @theme inline {
@@ -210,14 +254,102 @@ body {
     --color-neutral-700: #404040;
     --color-neutral-800: #262626;
 
+
+    
+  --background: 42 35% 96%;
+  --foreground: 0 15% 15%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 15% 15%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 15% 15%;
+
+  /* Deep burgundy - traditional Tibetan monastic color */
+  --primary: 355 65% 35%;
+  --primary-foreground: 42 35% 96%;
+  
+  /* Gold accent - sacred art */
+  --secondary: 45 85% 50%;
+  --secondary-foreground: 0 15% 15%;
+
+  /* Subtle cream */
+  --muted: 42 20% 92%;
+  --muted-foreground: 0 10% 45%;
+
+  /* Turquoise accent - sacred stones */
+  --accent: 180 45% 55%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 42 15% 88%;
+  --input: 42 15% 88%;
+  --ring: 355 65% 35%;
+
+  --radius: 0.75rem;
+  
+  /* Custom design tokens */
+  --gradient-primary: linear-gradient(135deg, hsl(355 65% 35%), hsl(355 50% 25%));
+  --gradient-gold: linear-gradient(135deg, hsl(45 85% 50%), hsl(40 75% 45%));
+  --shadow-elegant: 0 10px 30px -10px hsl(355 65% 35% / 0.25);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --sidebar-background: 0 0% 98%;
+
+  --sidebar-foreground: 240 5.3% 26.1%;
+
+  --sidebar-primary: 240 5.9% 10%;
+
+  --sidebar-primary-foreground: 0 0% 98%;
+
+  --sidebar-accent: 240 4.8% 95.9%;
+
+  --sidebar-accent-foreground: 240 5.9% 10%;
+
+  --sidebar-border: 220 13% 91%;
+
+  --sidebar-ring: 217.2 91.2% 59.8%;
+
+
+
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  
+  .tibetan-text {
+    font-family: 'Noto Sans Tibetan', serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-gold {
+    background: var(--gradient-gold);
+  }
+  
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
   }
 }
 

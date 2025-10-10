@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { usePersons, useCreatePerson, useUpdatePerson } from '@/hooks/usePersons';
 import type { Person, CreatePersonData } from '@/types/person';
-import { Button } from '../ui/button';
+import { Button } from '@/components/ui/button';
+import PersonCard from '@/components/PersonCard';
 
 const PersonCRUD = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'edit'>('list');
@@ -23,18 +24,6 @@ const PersonCRUD = () => {
   const createPersonMutation = useCreatePerson();
   const updatePersonMutation = useUpdatePerson();
 
-  // Helper function to get the main name
-  const getMainName = (person: Person): string => {
-    if (person.name.bo) return person.name.bo;
-    if (person.name.en) return person.name.en;
-    return Object.values(person.name)[0] || 'Unknown';
-  };
-
-  // Helper function to get alternative names
-  const getAltNames = (person: Person): string[] => {
-    return person.alt_names.map(altName => Object.values(altName)[0]).slice(0, 3);
-  };
-
 
   const handleCreate = () => {
     setSelectedPerson(null);
@@ -45,6 +34,17 @@ const PersonCRUD = () => {
       wiki: null
     });
     setActiveTab('create');
+  };
+
+  const handleEdit = (person: Person) => {
+    setSelectedPerson(person);
+    setFormData({
+      name: person.name,
+      alt_names: person.alt_names,
+      bdrc: person.bdrc,
+      wiki: person.wiki
+    });
+    setActiveTab('edit');
   };
 
 
@@ -61,7 +61,12 @@ const PersonCRUD = () => {
       // Clean up alt_names by removing id fields before sending to API
       const cleanFormData = {
         ...formData,
-        alt_names: formData.alt_names.map(({ id, ...altName }) => altName)
+        alt_names: formData.alt_names.map(altName => {
+          // Remove id field before sending to API
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, ...cleanAltName } = altName;
+          return cleanAltName;
+        })
       };
       createPersonMutation.mutate(cleanFormData, {
         onSuccess: () => {
@@ -272,28 +277,11 @@ const PersonCRUD = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {persons.map((person: Person) => (
-              <div key={`person-card-${person.id}`} className="bg-white rounded-lg shadow-md p-4 border">
-                <h3 className="font-semibold text-gray-800 mb-2">{getMainName(person)}</h3>
-                <div className="space-y-1 text-sm text-gray-600">
-
-                <p><span className="font-medium"> ID:</span> {person.id}</p>
-                <p><span className="font-medium">BDRC ID:</span> {person.bdrc}</p>
-                {person.wiki && <p><span className="font-medium">Wiki:</span> <a href={person.wiki} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Link</a></p>}
-                </div>
-                
-                {/* Alternative Names */}
-                {person.alt_names && person.alt_names.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-gray-600 text-sm font-medium mb-1">Alternative Names:</p>
-                    <ul className="text-xs text-gray-500 space-y-1">
-                      {getAltNames(person).map((altName, index) => (
-                        <li key={`alt-display-${person.id}-${index}`} className="truncate">• {altName}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-              </div>
+              <PersonCard 
+                key={`person-card-${person.id}`} 
+                person={person} 
+                onEdit={handleEdit}
+              />
             ))}
           </div>
         </div>

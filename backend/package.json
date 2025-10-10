@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "predev": "npx cross-port-killer 3000 9000",
+        "predev": "npx cross-port-killer  9000",
         "dev": "nodemon app.js"
     },
     "devDependencies": {

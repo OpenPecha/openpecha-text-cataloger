@@ -1,6 +1,6 @@
 import { useTextInstance, useCreateTextInstance } from '@/hooks/useTexts';
 import { useParams } from 'react-router-dom';
-import TextInstanceCard from '../TextInstanceCard';
+import TextInstanceCard from '@/components/TextInstanceCard';
 import type { OpenPechaTextInstance } from '@/types/text';
 import { useState } from 'react';
 

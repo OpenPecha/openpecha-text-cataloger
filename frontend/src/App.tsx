@@ -1,23 +1,30 @@
 import { Routes, Route } from 'react-router-dom';
-import Sidebar from './components/layout/Sidebar';
-import TextCRUD from './components/crud/Text';
-import PersonCRUD from './components/crud/Person';
-import TextInstanceCRUD from './components/crud/TextInstances';
-import Instance from './components/crud/Instance';
+import TextCRUD from './pages/Text';
+import PersonCRUD from './pages/Person';
+import TextInstanceCRUD from './pages/TextInstances';
+import Instance from './pages/Instance';
+import Headers from './components/layout/Header';
+import Index from './pages/Index';
 
 function App() {
   return (
-    <div className="flex min-h-screen bg-gray-100 font-monlam-2 text-xl">
-      <Sidebar />
-      <main className="flex-1 p-6">
+    <div className="min-h-screen font-monlam-2 text-xl">
+      <Headers/>
         <Routes>
-          <Route path="/" element={<TextCRUD />} />
-          <Route path="/texts" element={<TextCRUD />} />
-          <Route path="/persons" element={<PersonCRUD />} />
+          <Route path="/" element={<Index />} />
+          <Route path="/texts" element={
+            <div className='container mx-auto py-16'>
+            <TextCRUD />
+            </div>
+          } />
+          <Route path="/persons" element={
+            <div className='container mx-auto py-16'>
+              <PersonCRUD />
+              </div>
+              } />
           <Route path="/texts/:id/instance" element={<TextInstanceCRUD />} />
           <Route path="/instances/:id" element={<Instance />} />
         </Routes>
-      </main>
     </div>
   );
 }
