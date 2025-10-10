@@ -221,12 +221,7 @@ const TextCRUD = () => {
                   placeholder="Filter by author ID"
                 />
               </div>
-                <Button
-                  onClick={() => refetch()}
-                  variant={activeTab === 'list' ? 'default' : 'outline'}
-                >
-                  Refresh
-                </Button>
+               
             </div>
             
             {/* Pagination Info */}
