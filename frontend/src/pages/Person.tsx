@@ -255,7 +255,7 @@ const PersonCRUD = () => {
                   className={`px-3 py-1 rounded ${
                     pagination.offset === 0 
                       ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-primary-800 text-white hover:bg-primary-700'
                   }`}
                 >
                   Previous
@@ -266,7 +266,7 @@ const PersonCRUD = () => {
                   className={`px-3 py-1 rounded ${
                     persons.length < pagination.limit 
                       ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-primary-800 text-white hover:bg-primary-700'
                   }`}
                 >
                   Next

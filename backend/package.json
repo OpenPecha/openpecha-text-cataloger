@@ -1,7 +1,8 @@
 {
     "scripts": {
         "predev": "npx cross-port-killer  9000",
-        "dev": "nodemon app.js"
+        "dev": "nodemon app.js",
+        "start": "node app.js"
     },
     "devDependencies": {
         "concurrently": "^9.1.2",

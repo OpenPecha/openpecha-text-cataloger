@@ -46,7 +46,7 @@ const PersonCard = ({ person, onEdit }: PersonCardProps) => {
       
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
-          <Badge className="bg-primary-800 flex items-center gap-2">
+          <Badge className="bg-neutral-800 flex items-center gap-2">
             <Hash className="w-4 h-4 text-gray-400" />
             <span className="font-medium">ID:</span>
             <span className="font-mono text-xs"> {person.id}</span>

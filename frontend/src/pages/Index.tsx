@@ -37,14 +37,14 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background font-google-sans">
       
       {/* Hero Section */}
       <section className="relative ">
         <div className="absolute inset-0 gradient-primary opacity-5"></div>
         <div className="container mx-auto px-4 py-16 relative">
           <div className="max-w-3xl">
-            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="text-5xl font-bold mb-4  bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               OpenPecha Text Cataloger
             </h1>
             <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
@@ -127,7 +127,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full gradient-primary mx-auto mb-4 flex items-center justify-center">
-                <Book className="w-8 h-8 text-primary-foreground" />
+                <Book className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Text Management</h3>
               <p className="text-muted-foreground">

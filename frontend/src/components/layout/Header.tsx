@@ -16,9 +16,9 @@ const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center shadow-elegant transition-smooth group-hover:scale-105">
-              <Book className="w-6 h-6 text-primary-300" />
-            </div>
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center gradient-primary">
+              <Book className="w-6 h-6 text-white" />
+          </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">OpenPecha</h1>
               <p className="text-xs text-muted-foreground">Text Cataloger</p>
@@ -37,7 +37,7 @@ const Navigation = () => {
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-lg transition-smooth",
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "gradient-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
