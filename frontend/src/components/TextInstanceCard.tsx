@@ -33,7 +33,7 @@ const TextInstanceCard: React.FC<TextInstanceCardProps> = ({ instance }) => {
     }
   };
 
-  const title=instance.incipit_title?instance.incipit_title:instance.colophon;
+  const title=instance.incipit_title?instance.incipit_title?.bo:instance.colophon;
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
       {/* Header */}
