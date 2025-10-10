@@ -1,5 +1,6 @@
 import { useTexts } from '../hooks/useTexts';
 import type { OpenPechaText } from '../types/text';
+import { Button } from './ui/button';
 
 
 
@@ -64,17 +65,7 @@ const TextList = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Text Collection</h1>
-        <button 
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          className={`px-4 py-2 rounded text-white ${
-            isRefetching 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-green-500 hover:bg-green-600'
-          }`}
-        >
-          {isRefetching ? 'Refreshing...' : 'Refresh'}
-        </button>
+    
       </div>
 
       {texts.length === 0 ? (

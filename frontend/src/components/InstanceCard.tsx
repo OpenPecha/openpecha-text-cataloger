@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { OpenPechaTextInstance, SegmentationAnnotation } from '@/types/text';
+import { Button } from './ui/button';
 
 interface InstanceCardProps {
   instance: OpenPechaTextInstance;
@@ -105,7 +106,7 @@ const InstanceCard: React.FC<InstanceCardProps> = ({ instance }) => {
             
             return (
               <div key={annotationType} className="border border-gray-200 rounded">
-                <button
+                <Button
                   onClick={() => toggleAnnotation(annotationType)}
                   className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
                 >
@@ -127,7 +128,7 @@ const InstanceCard: React.FC<InstanceCardProps> = ({ instance }) => {
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
-                </button>
+                </Button>
                 
                 {isExpanded && (
                   <div className="border-t border-gray-200 p-3 space-y-2">

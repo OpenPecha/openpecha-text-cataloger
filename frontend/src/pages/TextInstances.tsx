@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import TextInstanceCard from '@/components/TextInstanceCard';
 import type { OpenPechaTextInstance } from '@/types/text';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 function TextInstanceCRUD() {
   const { id } = useParams();
@@ -284,14 +285,14 @@ function TextInstanceCRUD() {
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">Create Text Instance</h3>
-              <button
+              <Button
                 onClick={closeModal}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">

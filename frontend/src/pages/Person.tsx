@@ -384,20 +384,19 @@ const PersonCRUD = () => {
               />
             </div>
             <div className="flex space-x-3">
-              <button
+              <Button
                 type="submit"
                 disabled={createPersonMutation.isPending || updatePersonMutation.isPending}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-6 py-2 rounded"
               >
                 {activeTab === 'create' ? 'Create Person' : 'Update Person'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleBackToList}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded"
+                variant="ghost"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>

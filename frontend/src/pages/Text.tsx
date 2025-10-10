@@ -231,22 +231,14 @@ const TextCRUD = () => {
                 <Button
                   onClick={handlePrevPage}
                   disabled={pagination.offset === 0}
-                  className={`px-3 py-1 rounded ${
-                    pagination.offset === 0 
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
+                  variant={pagination.offset === 0 ? 'default' : 'outline'}
                 >
                   Previous
                 </Button>
                 <Button
                   onClick={handleNextPage}
                   disabled={texts.length < pagination.limit}
-                  className={`px-3 py-1 rounded ${
-                    texts.length < pagination.limit 
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
+                  variant={texts.length < pagination.limit ? 'default' : 'outline'}
                 >
                   Next
                 </Button>
@@ -430,24 +422,20 @@ const TextCRUD = () => {
             )}
 
             <div className="flex space-x-3">
-              <button
+              <Button
                 type="submit"
                 disabled={createTextMutation.isPending}
-                className={`px-6 py-2 rounded ${
-                  createTextMutation.isPending
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-blue-500 hover:bg-blue-600'
-                } text-white`}
+                variant={createTextMutation.isPending ? 'default' : 'outline'}
               >
                 {createTextMutation.isPending ? 'Creating...' : 'Create Text'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleBackToList}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -498,19 +486,20 @@ const TextCRUD = () => {
               </div>
             </div>
             <div className="flex space-x-3">
-              <button
+              <Button
                 type="submit"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded"
+                disabled={createTextMutation.isPending}
+                variant={createTextMutation.isPending ? 'default' : 'outline'}
               >
                 Update Text
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={handleBackToList}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded"
+                variant="ghost"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>

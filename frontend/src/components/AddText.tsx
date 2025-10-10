@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAddText } from '../hooks/useTexts';
+import { Button } from './ui/button';
 
 interface TextData {
   title: string;
@@ -114,17 +115,13 @@ const AddText = () => {
           </div>
         )}
 
-        <button
+        <Button
           type="submit"
           disabled={addTextMutation.isPending}
-          className={`w-full py-2 px-4 rounded-md font-medium ${
-            addTextMutation.isPending
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-500 hover:bg-blue-600'
-          } text-white`}
+          variant={addTextMutation.isPending ? 'default' : 'outline'}
         >
           {addTextMutation.isPending ? 'Adding...' : 'Add Text'}
-        </button>
+        </Button>
       </form>
     </div>
   );

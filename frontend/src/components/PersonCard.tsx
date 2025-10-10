@@ -30,17 +30,6 @@ const PersonCard = ({ person, onEdit }: PersonCardProps) => {
           <User className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-smooth" />
           </div>   
         </div>
-        {/* {onEdit && (
-          <CardAction>
-            <button
-              onClick={() => onEdit(person)}
-              disabled={true}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              Edit
-            </button>
-          </CardAction>
-        )} */}
 
       </CardHeader>
       
