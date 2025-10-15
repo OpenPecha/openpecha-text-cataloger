@@ -53,7 +53,7 @@ const TextListCard = ({ text, onEdit }: TextListCardProps) => {
           <Book className="w-5 h-5 text-gray-500  flex-shrink-0" />
           <CardTitle className="text-lg w-full ">
             <Link 
-              to={`/texts/${text.id}/instance`} 
+              to={`/texts/${text.id}/instances`} 
               className="hover:text-blue-600 w-full transition-colors duration-200 truncate"
             >
               {text.title?.[text.language] || 'Untitled'}

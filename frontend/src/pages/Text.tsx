@@ -5,6 +5,7 @@ import type { OpenPechaText } from '@/types/text';
 import type { Person } from '@/types/person';
 import { Button } from '@/components/ui/button';
 import TextListCard from '@/components/TextListCard';
+import BreadCrumb from '@/components/BreadCrumb';
 
 const TextCRUD = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'edit'>('list');
@@ -159,6 +160,8 @@ const TextCRUD = () => {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Text Management</h2>

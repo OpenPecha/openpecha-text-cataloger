@@ -23,7 +23,6 @@ const InstanceCard: React.FC<InstanceCardProps> = ({ instance }) => {
       return total + (Array.isArray(annotations) ? annotations.length : 0);
     }, 0);
   };
-
   const renderAnnotationContent = (annotationType: string, annotations: unknown[]) => {
     if (annotationType === 'segmentation') {
       return annotations.map((annotation) => {
@@ -76,7 +75,7 @@ const InstanceCard: React.FC<InstanceCardProps> = ({ instance }) => {
     <div className="bg-white rounded-lg border border-gray-200 p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-gray-900">Text Instance</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Base Text</h3>
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <span>{instance.base?.length || 0} chars</span>
           <span>•</span>

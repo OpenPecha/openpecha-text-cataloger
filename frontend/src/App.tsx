@@ -20,8 +20,8 @@ function App() {
           <Route path="/persons" element={
               <PersonCRUD />
               } />
-          <Route path="/texts/:id/instance" element={<TextInstanceCRUD />} />
-          <Route path="/instances/:id" element={<Instance />} />
+          <Route path="/texts/:text_id/instances" element={<TextInstanceCRUD />} />
+          <Route path="/texts/:text_id/instances/:instance_id" element={<Instance />} />
         </Routes>
         </div>
     </div>

@@ -6,7 +6,6 @@ const Navigation = () => {
   const location = useLocation();
   
   const navItems = [
-    { path: "/", icon: Home, label: "Home" },
     { path: "/texts", icon: Book, label: "Texts" },
     { path: "/persons", icon: Users, label: "Persons" },
   ];
@@ -25,7 +24,7 @@ const Navigation = () => {
           <div className="flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname.includes(item.path);
               
               return (
                 <Link
@@ -34,7 +33,7 @@ const Navigation = () => {
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-lg transition-smooth",
                     isActive
-                      ? "gradient-primary text-primary-foreground"
+                      ? " text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >

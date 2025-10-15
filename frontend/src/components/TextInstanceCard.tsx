@@ -1,12 +1,16 @@
 import React from 'react';
 import type { OpenPechaTextInstance } from '@/types/text';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 interface TextInstanceCardProps {
   instance: OpenPechaTextInstance;
 }
 
 const TextInstanceCard: React.FC<TextInstanceCardProps> = ({ instance }) => {
+
+
+  const {text_id}=useParams();
+
   const getTypeColor = (type: string) => {
     if (!type) return 'bg-gray-100 text-gray-800 border-gray-200';
     switch (type.toLowerCase()) {
@@ -35,7 +39,7 @@ const TextInstanceCard: React.FC<TextInstanceCardProps> = ({ instance }) => {
 
   const title=instance.incipit_title?instance.incipit_title?.bo:instance.colophon;
   return (
-    <Link to={`/instances/${instance.id}`} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
+    <Link to={`/texts/${text_id}/instances/${instance.id}`} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">

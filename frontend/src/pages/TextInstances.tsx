@@ -1,12 +1,13 @@
 import { useTextInstance, useCreateTextInstance, useText } from '@/hooks/useTexts';
 import { useParams } from 'react-router-dom';
 import TextInstanceCard from '@/components/TextInstanceCard';
+import BreadCrumb from '@/components/BreadCrumb';
 import type { OpenPechaTextInstance } from '@/types/text';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 function TextInstanceCRUD() {
-  const { id } = useParams();
+  const { text_id } = useParams();
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     metadata: {
@@ -35,10 +36,9 @@ function TextInstanceCRUD() {
     data: instances = [],
     isLoading,
     error,
-    refetch,
-    isRefetching
-  } = useTextInstance(id || '');
-  const { data: text = [] } = useText(id || '');
+    refetch
+  } = useTextInstance(text_id || '');
+  const { data: text = [] } = useText(text_id || '');
   const createInstanceMutation = useCreateTextInstance();
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -128,7 +128,7 @@ function TextInstanceCRUD() {
     }
 
     createInstanceMutation.mutate({
-      textId: id || '',
+      textId: text_id || '',
       instanceData: formData
     }, {
       onSuccess: () => {
@@ -250,8 +250,12 @@ function TextInstanceCRUD() {
   }
 
   const title = text.title.bo || text.title.en || text.title.sa || 'Untitled';
+
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <BreadCrumb  textname={title}/>
+      
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
@@ -361,7 +365,7 @@ function TextInstanceCRUD() {
                 
                 {/* Incipit Title */}
                 <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Incipit Title</label>
+                  <div className="block text-sm font-medium text-gray-700 mb-2">Incipit Title</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="metadata.incipit_title.en" className="block text-sm font-medium text-gray-700 mb-1">English</label>
@@ -408,7 +412,7 @@ function TextInstanceCRUD() {
                 </div>
                 
                 {formData.annotation.map((annotation, index) => (
-                  <div key={index} className="border rounded-lg p-3 mb-3 bg-gray-50">
+                  <div key={`annotation-${annotation.index}-${index}`} className="border rounded-lg p-3 mb-3 bg-gray-50">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-700">Annotation {index + 1}</span>
                       {formData.annotation.length > 1 && (

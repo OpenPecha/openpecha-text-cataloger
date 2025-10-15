@@ -1,17 +1,17 @@
 import { useInstance } from '@/hooks/useTexts';
 import { useParams } from 'react-router-dom';
 import InstanceCard from '../components/InstanceCard';
+import BreadCrumb from '../components/BreadCrumb';
 import type { OpenPechaTextInstance } from '@/types/text';
 
 function Instance() {
-  const { id } = useParams();
+  const { instance_id } = useParams();
   const {
     data: instance,
     isLoading,
     error,
-    refetch,
-    isRefetching
-  } = useInstance(id || '');
+    refetch
+  } = useInstance(instance_id || '');
 
   if (isLoading) {
     return (
@@ -61,12 +61,15 @@ function Instance() {
       </div>
     );
   }
-
+  const title ='Annotation';
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <BreadCrumb instancename={title}/>
+      
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Text Instance</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
         </div>
   
       </div>

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import './tailwind.css'
 import App from './App.tsx'
+import { UserbackProvider } from './context/UserbackProvider.tsx'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,9 +19,12 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
+    <UserbackProvider>
+
       <BrowserRouter>
         <App />
       </BrowserRouter>
+      </UserbackProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

@@ -3,6 +3,7 @@ import { usePersons, useCreatePerson, useUpdatePerson } from '@/hooks/usePersons
 import type { Person, CreatePersonData } from '@/types/person';
 import { Button } from '@/components/ui/button';
 import PersonCard from '@/components/PersonCard';
+import BreadCrumb from '@/components/BreadCrumb';
 
 const PersonCRUD = () => {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'edit'>('list');
@@ -178,6 +179,8 @@ const PersonCRUD = () => {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Person Management</h2>
