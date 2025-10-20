@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { useInstance, useText } from '@/hooks/useTexts';
 
 interface BreadcrumbItem {
   label: string;
