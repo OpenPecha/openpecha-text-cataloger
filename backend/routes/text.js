@@ -71,7 +71,6 @@ router.get('/', async (req, res) => {
     if (author) queryParams.append('author', author);
     
     const apiUrl = `${API_ENDPOINT}/texts?${queryParams.toString()}`;
-    console.log(apiUrl)
     const response = await axios.get(apiUrl, {
       headers: {
         'accept': 'application/json'
@@ -230,8 +229,6 @@ router.post('/', async (req, res) => {
     }
 
     const apiUrl = `${API_ENDPOINT}/texts`;
-    console.log('Creating text at:', apiUrl);
-    console.log('Text data:', JSON.stringify(textData, null, 2));
 
     const response = await axios.post(apiUrl, textData, {
       headers: {
@@ -392,7 +389,6 @@ router.post("/:id/instances", async (req, res) => {
     const instanceData = req.body;
     
     // Validate required fields
-    console.log(instanceData?.annotation)
     if (!instanceData.content) {
       return res.status(400).json({
         error: 'Missing required field',
@@ -401,8 +397,6 @@ router.post("/:id/instances", async (req, res) => {
     }
 
     const apiUrl = `${API_ENDPOINT}/texts/${id}/instances`;
-    console.log('Creating text instance at:', apiUrl);
-    console.log('Instance data:', JSON.stringify(instanceData, null, 2));
 
     const response = await axios.post(apiUrl, instanceData, {
       headers: {
