@@ -1,0 +1,26 @@
+name: Check for console.log usage
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  no-console-check:
+    name: Validate no console.log in code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for console.log statements
+        run: |
+          echo "Scanning repository for console.log()..."
+          if grep -r --exclude-dir={.git,node_modules,dist,build} -E "console\.log" .; then
+            echo "::error::❌ console.log() statements found — remove them before merging."
+            exit 1
+          else
+            echo "✅ No console.log() found."
+          fi
