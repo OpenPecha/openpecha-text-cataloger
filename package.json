@@ -2,7 +2,8 @@
   "scripts": {
     "predev": "npx cross-port-killer 3000 9000",
     "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
-    "prepare": "husky"
+    "prepare": "husky",
+     "test": "echo \"No tests defined\" && exit 0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
