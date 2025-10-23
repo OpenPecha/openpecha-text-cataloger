@@ -1,8 +1,7 @@
 {
   "scripts": {
     "predev": "npx cross-port-killer 3000 9000",
-    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
-    "prepare": "husky"
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
