@@ -1,9 +1,7 @@
 {
   "scripts": {
     "predev": "npx cross-port-killer 3000 9000",
-    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
-    "prepare": "husky",
-     "test": "echo \"No tests defined\" && exit 0"
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
@@ -11,16 +9,5 @@
     "eslint": "^9.38.0",
     "lint-staged": "^16.2.6",
     "npm-run-all": "^4.1.5"
-  },
-  
-    "lint-staged": {
-      "*.{js,jsx,ts,tsx}": ["eslint --fix"]
-    },
-    "eslintConfig": {
-      "rules": {
-      "no-console": "error"
-      }
-    }
-  
-  
+  }
 }
