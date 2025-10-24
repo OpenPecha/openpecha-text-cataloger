@@ -198,10 +198,7 @@ const UnifiedCreationForm = () => {
           bdrc: (formData.get("text_bdrc") as string) || undefined,
         };
 
-        console.log("🔵 STEP 1: Creating text with data:", textData);
         const newText = await createTextMutation.mutateAsync(textData);
-        console.log("✅ STEP 1 Complete: Text created with ID:", newText.id);
-        console.log("📦 Full text response:", newText);
 
         textId = newText.id;
         createdNewText = true;
@@ -211,7 +208,6 @@ const UnifiedCreationForm = () => {
         if (!selectedText) {
           throw new Error("Please select a text or create a new one");
         }
-        console.log("🔵 STEP 1: Using existing text ID:", selectedText.id);
         textId = selectedText.id;
       }
 
@@ -231,12 +227,7 @@ const UnifiedCreationForm = () => {
           content: formData.get("content") as string,
         };
 
-        console.log("🔵 STEP 2: Creating instance for text ID:", textId);
-        console.log("📦 Instance data:", instanceData);
-
         await createInstanceMutation.mutateAsync({ textId, instanceData });
-
-        console.log("✅ STEP 2 Complete: Instance created successfully!");
 
         setSuccess("Text and instance created successfully!");
 
