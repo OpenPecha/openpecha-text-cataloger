@@ -5,29 +5,27 @@ import {
   useCreateText,
   useCreateTextInstance,
 } from "@/hooks/useTexts";
-import { usePersons } from "@/hooks/usePersons";
 import type { OpenPechaText } from "@/types/text";
-import type { Person } from "@/types/person";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import TextCreationForm from "@/components/TextCreationForm";
+import InstanceCreationForm from "@/components/InstanceCreationForm";
 
 const UnifiedCreationForm = () => {
   const navigate = useNavigate();
 
-  // State for text selection/creation
-  const [isCreatingNewText, setIsCreatingNewText] = useState(false);
+  // State for workflow management
+  const [currentStep, setCurrentStep] = useState<
+    "select" | "text" | "instance"
+  >("select");
   const [selectedText, setSelectedText] = useState<OpenPechaText | null>(null);
+  const [createdTextId, setCreatedTextId] = useState<string | null>(null);
   const [textSearch, setTextSearch] = useState("");
   const [showTextDropdown, setShowTextDropdown] = useState(false);
-
-  // State for person selection (for text contributions)
-  const [personSearch, setPersonSearch] = useState("");
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [showPersonDropdown, setShowPersonDropdown] = useState(false);
+  const [textFormData, setTextFormData] = useState<any>(null);
 
   // Debounced search
   const [debouncedTextSearch, setDebouncedTextSearch] = useState("");
-  const [debouncedPersonSearch, setDebouncedPersonSearch] = useState("");
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,10 +37,7 @@ const UnifiedCreationForm = () => {
   const createInstanceMutation = useCreateTextInstance();
 
   // Fetch texts for dropdown
-  const { data: texts = [] } = useTexts({ limit: 50, offset: 0 });
-
-  // Fetch persons for author selection
-  const { data: persons = [] } = usePersons({ limit: 50, offset: 0 });
+  const { data: texts = [] } = useTexts({ limit: 100, offset: 0 });
 
   // Debounce text search
   useEffect(() => {
@@ -52,61 +47,23 @@ const UnifiedCreationForm = () => {
     return () => clearTimeout(timer);
   }, [textSearch]);
 
-  // Debounce person search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedPersonSearch(personSearch);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [personSearch]);
-
   // Filter texts based on search
   const filteredTexts = useMemo(() => {
-    if (!debouncedTextSearch.trim()) return texts.slice(0, 10);
+    if (!debouncedTextSearch.trim()) return texts.slice(0, 50);
 
     return texts
       .filter((text: OpenPechaText) => {
         const searchLower = debouncedTextSearch.toLowerCase();
-
-        // Search in ALL title languages (en, bo, zh, sa, hi, it, lzh, cmg, etc.)
         const titleMatches = Object.values(text.title).some((title) =>
           title.toLowerCase().includes(searchLower)
         );
-
-        // Also search in text ID
         const idMatches = text.id.toLowerCase().includes(searchLower);
-
         return titleMatches || idMatches;
       })
-      .slice(0, 10);
+      .slice(0, 50);
   }, [texts, debouncedTextSearch]);
 
-  // Filter persons based on search
-  const filteredPersons = useMemo(() => {
-    if (!debouncedPersonSearch.trim()) return persons.slice(0, 10);
-
-    return persons
-      .filter((person) => {
-        const mainName =
-          person.name.bo ||
-          person.name.en ||
-          Object.values(person.name)[0] ||
-          "";
-        const altNames = person.alt_names
-          .map((alt) => Object.values(alt)[0])
-          .join(" ");
-        const searchLower = debouncedPersonSearch.toLowerCase();
-
-        return (
-          mainName.toLowerCase().includes(searchLower) ||
-          altNames.toLowerCase().includes(searchLower) ||
-          person.id.toLowerCase().includes(searchLower)
-        );
-      })
-      .slice(0, 10);
-  }, [persons, debouncedPersonSearch]);
-
-  // Helper functions
+  // Helper function
   const getTextDisplayName = (text: OpenPechaText): string => {
     return (
       text.title.bo ||
@@ -116,28 +73,19 @@ const UnifiedCreationForm = () => {
     );
   };
 
-  const getPersonDisplayName = (person: Person): string => {
-    return (
-      person.name.bo ||
-      person.name.en ||
-      Object.values(person.name)[0] ||
-      "Unknown"
-    );
-  };
-
   // Handle text selection
   const handleTextSelect = (text: OpenPechaText) => {
     setSelectedText(text);
     setTextSearch(getTextDisplayName(text));
     setShowTextDropdown(false);
-    setIsCreatingNewText(false);
+    setCurrentStep("instance");
   };
 
   const handleCreateNewText = () => {
-    setIsCreatingNewText(true);
     setSelectedText(null);
     setTextSearch("");
     setShowTextDropdown(false);
+    setCurrentStep("text");
   };
 
   const handleTextSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,118 +93,45 @@ const UnifiedCreationForm = () => {
     setShowTextDropdown(true);
     if (!e.target.value) {
       setSelectedText(null);
-      setIsCreatingNewText(false);
     }
   };
 
-  // Handle person selection
-  const handlePersonSelect = (person: Person) => {
-    setSelectedPerson(person);
-    setPersonSearch(getPersonDisplayName(person));
-    setShowPersonDropdown(false);
+  // Handle text creation (just store the data, don't submit yet)
+  const handleTextCreation = async (textData: any) => {
+    setTextFormData(textData);
   };
 
-  const handlePersonSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPersonSearch(e.target.value);
-    setShowPersonDropdown(true);
-    if (!e.target.value) {
-      setSelectedPerson(null);
-    }
-  };
-
-  // Form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle unified creation: create text (if new) then create instance
+  const handleInstanceCreation = async (instanceData: any) => {
     setError(null);
     setSuccess(null);
     setIsSubmitting(true);
 
     try {
-      const formData = new FormData(e.target as HTMLFormElement);
-      let textId: string;
-      let createdNewText = false;
+      let textId = selectedText?.id;
 
-      // STEP 1: Get or Create Text
-      if (isCreatingNewText) {
-        // Create new text
-        const textData = {
-          type: formData.get("type") as string,
-          title: {
-            en: formData.get("title_en") as string,
-            bo: formData.get("title_bo") as string,
-          },
-          language: formData.get("language") as string,
-          contributions: selectedPerson
-            ? [
-                {
-                  person_id: selectedPerson.id,
-                  role: formData.get("role") as string,
-                },
-              ]
-            : undefined,
-          date: (formData.get("date") as string) || undefined,
-          bdrc: (formData.get("text_bdrc") as string) || undefined,
-        };
-
-        const newText = await createTextMutation.mutateAsync(textData);
-
+      // If creating new text, create it first
+      if (currentStep === "text" && textFormData) {
+        const newText = await createTextMutation.mutateAsync(textFormData);
         textId = newText.id;
-        createdNewText = true;
-        setSuccess("Text created successfully!");
-      } else {
-        // Use existing text
-        if (!selectedText) {
-          throw new Error("Please select a text or create a new one");
-        }
-        textId = selectedText.id;
+        setCreatedTextId(newText.id);
       }
 
-      // STEP 2: Create Instance
-      try {
-        const instanceData = {
-          metadata: {
-            type: (formData.get("instance_type") as string) || undefined,
-            copyright: (formData.get("copyright") as string) || undefined,
-            bdrc: (formData.get("instance_bdrc") as string) || undefined,
-            colophon: (formData.get("colophon") as string) || undefined,
-            incipit_title: {
-              en: (formData.get("incipit_title_en") as string) || undefined,
-              bo: (formData.get("incipit_title_bo") as string) || undefined,
-            },
-          },
-          content: formData.get("content") as string,
-        };
-
-        await createInstanceMutation.mutateAsync({ textId, instanceData });
-
-        setSuccess("Text and instance created successfully!");
-
-        // Redirect to text list after a short delay
-        setTimeout(() => {
-          navigate("/texts");
-        }, 1500);
-      } catch (instanceError: unknown) {
-        // Instance creation failed
-        const errorMessage =
-          instanceError instanceof Error
-            ? instanceError.message
-            : "Unknown error";
-        if (createdNewText) {
-          setError(
-            `Text created (ID: ${textId}), but instance creation failed: ${errorMessage}. ` +
-              `You can add an instance later from the text page.`
-          );
-          // Optionally navigate to the text's instance page
-          setTimeout(() => {
-            navigate(`/texts/${textId}/instances`);
-          }, 3000);
-        } else {
-          throw instanceError;
-        }
+      if (!textId) {
+        throw new Error("No text selected or created");
       }
+
+      // Now create the instance
+      await createInstanceMutation.mutateAsync({ textId, instanceData });
+      setSuccess("Text and Details created successfully!");
+
+      // Redirect to text list after a short delay
+      setTimeout(() => {
+        navigate("/texts");
+      }, 1500);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      setError(errorMessage || "An error occurred during submission");
+      setError(`Failed to create: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -265,13 +140,9 @@ const UnifiedCreationForm = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-Black-800 mb-2">
-          Create Text & Instance
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          Create Text and its Details
         </h1>
-        <p className="text-gray-600">
-          Create a new Text with its Instance, or add an Instance to an existing
-          Text.
-        </p>
       </div>
 
       {/* Success/Error Messages */}
@@ -287,465 +158,152 @@ const UnifiedCreationForm = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Text Selection Section */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">
-            1. Select or Create Text
-          </h2>
+      {/* Step 1: Select or Create Text */}
+      <Card className="p-6">
+        <h2 className="text-xl font-semibold mb-4">
+          Step 1: Select or Create Text
+        </h2>
 
-          <div className="space-y-4">
-            <div className="relative">
-              <label
-                htmlFor="text-search"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Search for existing text
-              </label>
-              <input
-                id="text-search"
-                type="text"
-                value={textSearch}
-                onChange={handleTextSearchChange}
-                onFocus={() => setShowTextDropdown(true)}
-                onBlur={() => setTimeout(() => setShowTextDropdown(false), 200)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Search by title or ID..."
-                disabled={isCreatingNewText}
-              />
+        <div className="space-y-4">
+          <div className="relative">
+            <label
+              htmlFor="text-search"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Search for existing text
+            </label>
+            <input
+              id="text-search"
+              type="text"
+              value={textSearch}
+              onChange={handleTextSearchChange}
+              onFocus={() => setShowTextDropdown(true)}
+              onBlur={() => setTimeout(() => setShowTextDropdown(false), 200)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Search by title or ID..."
+            />
 
-              {/* Text Dropdown */}
-              {showTextDropdown && !isCreatingNewText && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={handleCreateNewText}
-                    className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-200 font-medium text-blue-600"
-                  >
-                    ➕ Create New Text
-                  </button>
+            {/* Text Dropdown */}
+            {showTextDropdown && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={handleCreateNewText}
+                  className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-200 font-medium text-blue-600"
+                >
+                  ➕ Create New Text
+                </button>
 
-                  {filteredTexts.length > 0 ? (
-                    filteredTexts.map((text: OpenPechaText) => (
-                      <button
-                        key={text.id}
-                        type="button"
-                        onClick={() => handleTextSelect(text)}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100"
-                      >
-                        <div className="font-medium">
-                          {getTextDisplayName(text)}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {text.type} • {text.language} • {text.id}
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-2 text-gray-500 text-sm">
-                      No texts found
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                {filteredTexts.length > 0 ? (
+                  filteredTexts.map((text: OpenPechaText) => (
+                    <button
+                      key={text.id}
+                      type="button"
+                      onClick={() => handleTextSelect(text)}
+                      className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100"
+                    >
+                      <div className="font-medium">
+                        {getTextDisplayName(text)}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {text.type} • {text.language} • {text.id}
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-2 text-gray-500 text-sm">
+                    No texts found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-            {isCreatingNewText && (
-              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 px-4 py-2 rounded-md">
-                <span className="text-blue-700 font-medium">
-                  Creating new text
+          {selectedText && (
+            <div className="bg-gray-50 border border-gray-200 px-4 py-3 rounded-md">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Selected Text:
                 </span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setIsCreatingNewText(false);
+                    setSelectedText(null);
                     setTextSearch("");
+                    setCurrentStep("select");
                   }}
                 >
-                  Cancel
+                  Change
                 </Button>
               </div>
-            )}
-
-            {selectedText && !isCreatingNewText && (
-              <div className="bg-gray-50 border border-gray-200 px-4 py-3 rounded-md">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    Selected Text:
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedText(null);
-                      setTextSearch("");
-                    }}
-                  >
-                    Change
-                  </Button>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <div>
-                    <strong>Title:</strong> {getTextDisplayName(selectedText)}
-                  </div>
-                  <div>
-                    <strong>Type:</strong> {selectedText.type}
-                  </div>
-                  <div>
-                    <strong>Language:</strong> {selectedText.language}
-                  </div>
-                  <div>
-                    <strong>ID:</strong> {selectedText.id}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Text Metadata Section (only if creating new) */}
-        {isCreatingNewText && (
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">2. Text Details</h2>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1 text-sm">
                 <div>
-                  <label
-                    htmlFor="type"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Type *
-                  </label>
-                  <select
-                    id="type"
-                    name="type"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select type</option>
-                    <option value="root">Root</option>
-                    <option value="translation">Translation</option>
-                    <option value="commentary">Commentary</option>
-                  </select>
+                  <strong>Title:</strong> {getTextDisplayName(selectedText)}
                 </div>
-
                 <div>
-                  <label
-                    htmlFor="language"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Language *
-                  </label>
-                  <select
-                    id="language"
-                    name="language"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select language</option>
-                    <option value="bo">Tibetan (bo)</option>
-                    <option value="en">English (en)</option>
-                    <option value="sa">Sanskrit (sa)</option>
-                    <option value="zh">Chinese (zh)</option>
-                    <option value="lzh">Literary Chinese (lzh)</option>
-                    <option value="hi">Hindi (hi)</option>
-                    <option value="it">Italian (it)</option>
-                    <option value="cmg">Classical Mongolian (cmg)</option>
-                  </select>
+                  <strong>Type:</strong> {selectedText.type}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="title_en"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Title (English)
-                  </label>
-                  <input
-                    id="title_en"
-                    type="text"
-                    name="title_en"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter English title"
-                  />
+                  <strong>Language:</strong> {selectedText.language}
                 </div>
-
                 <div>
-                  <label
-                    htmlFor="title_bo"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Title (Tibetan)
-                  </label>
-                  <input
-                    id="title_bo"
-                    type="text"
-                    name="title_bo"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter Tibetan title"
-                  />
-                </div>
-              </div>
-
-              {/* Author/Contributor Selection */}
-              <div className="relative">
-                <label
-                  htmlFor="person-search"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Author/Contributor
-                </label>
-                <input
-                  id="person-search"
-                  type="text"
-                  value={personSearch}
-                  onChange={handlePersonSearchChange}
-                  onFocus={() => setShowPersonDropdown(true)}
-                  onBlur={() =>
-                    setTimeout(() => setShowPersonDropdown(false), 200)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Search for person..."
-                />
-
-                {/* Person Dropdown */}
-                {showPersonDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {filteredPersons.length > 0 ? (
-                      filteredPersons.map((person) => (
-                        <button
-                          key={person.id}
-                          type="button"
-                          onClick={() => handlePersonSelect(person)}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100"
-                        >
-                          <div className="font-medium">
-                            {getPersonDisplayName(person)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {person.id}
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-2 text-gray-500 text-sm">
-                        No persons found
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {selectedPerson && (
-                <div>
-                  <label
-                    htmlFor="role"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Role
-                  </label>
-                  <select
-                    id="role"
-                    name="role"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="author">Author</option>
-                    <option value="translator">Translator</option>
-                    <option value="reviser">Reviser</option>
-                    <option value="editor">Editor</option>
-                  </select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="date"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Date
-                  </label>
-                  <input
-                    id="date"
-                    type="date"
-                    name="date"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="text_bdrc"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    BDRC ID
-                  </label>
-                  <input
-                    id="text_bdrc"
-                    type="text"
-                    name="text_bdrc"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., W123456"
-                  />
+                  <strong>ID:</strong> {selectedText.id}
                 </div>
               </div>
             </div>
-          </Card>
-        )}
+          )}
+        </div>
+      </Card>
 
-        {/* Instance Metadata Section */}
+      {/* Step 2: Create New Text Form (only show if "Create New Text" was clicked) */}
+      {currentStep === "text" && (
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">
-            {isCreatingNewText ? "3. Instance Details" : "2. Instance Details"}
+            Step 2: Create New Text
           </h2>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="instance_type"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Instance Type
-                </label>
-                <input
-                  id="instance_type"
-                  type="text"
-                  name="instance_type"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., diplomatic"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="copyright"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Copyright
-                </label>
-                <input
-                  id="copyright"
-                  type="text"
-                  name="copyright"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., public"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="instance_bdrc"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  BDRC ID
-                </label>
-                <input
-                  id="instance_bdrc"
-                  type="text"
-                  name="instance_bdrc"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., W123456"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="colophon"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Colophon
-                </label>
-                <input
-                  id="colophon"
-                  type="text"
-                  name="colophon"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Colophon text"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="incipit_title_en"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Incipit Title (English)
-                </label>
-                <input
-                  id="incipit_title_en"
-                  type="text"
-                  name="incipit_title_en"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Opening words in English"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="incipit_title_bo"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Incipit Title (Tibetan)
-                </label>
-                <input
-                  id="incipit_title_bo"
-                  type="text"
-                  name="incipit_title_bo"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="དབུ་ཚིག"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="content"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Content *
-              </label>
-              <textarea
-                id="content"
-                name="content"
-                required
-                rows={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter the text content..."
-              />
-            </div>
-          </div>
+          <TextCreationForm
+            onSubmit={handleTextCreation}
+            isSubmitting={isSubmitting}
+            onCancel={() => setCurrentStep("select")}
+          />
         </Card>
+      )}
 
-        {/* Submit Button */}
-        <div className="flex justify-end space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate("/texts")}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-
-          <Button
-            type="submit"
-            disabled={isSubmitting || (!isCreatingNewText && !selectedText)}
-          >
-            {isSubmitting ? "Creating..." : "Create Text & Instance"}
-          </Button>
-        </div>
-      </form>
+      {/* Step 3: Create Details Form (show when text is selected or created) */}
+      {(currentStep === "instance" || currentStep === "text") && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">
+            {currentStep === "text" ? "Step 3: " : "Step 2: "}Create Details
+          </h2>
+          {(createdTextId || selectedText || currentStep === "text") && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-800">
+                {currentStep === "text" && !createdTextId ? (
+                  <>Details for the Text</>
+                ) : (
+                  <>
+                    Details for:{" "}
+                    <strong>{createdTextId || selectedText?.id}</strong>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+          <InstanceCreationForm
+            onSubmit={handleInstanceCreation}
+            isSubmitting={isSubmitting}
+            onCancel={() => {
+              if (createdTextId) {
+                setCurrentStep("text");
+              } else {
+                setCurrentStep("select");
+              }
+            }}
+          />
+        </Card>
+      )}
     </div>
   );
 };

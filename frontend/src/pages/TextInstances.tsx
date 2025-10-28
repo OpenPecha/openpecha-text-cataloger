@@ -155,10 +155,10 @@ function TextInstanceCRUD() {
           ],
           content: ''
         });
-        alert('Text instance created successfully!');
+        alert('Text details created successfully!');
       },
       onError: (error) => {
-        alert(`Error creating instance: ${error.message}`);
+        alert(`Error creating details: ${error.message}`);
       }
     });
   };
@@ -204,7 +204,7 @@ function TextInstanceCRUD() {
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Loading text instances...</span>
+        <span className="ml-2 text-gray-600">Loading text details...</span>
       </div>
     );
   }
@@ -219,7 +219,7 @@ function TextInstanceCRUD() {
             </svg>
           </div>
           <div>
-            <h3 className="text-sm font-medium text-red-800">Error loading text instances</h3>
+            <h3 className="text-sm font-medium text-red-800">Error loading text details</h3>
             <p className="text-sm text-red-600 mt-1">
               {error instanceof Error ? error.message : 'An unknown error occurred'}
             </p>
@@ -243,8 +243,8 @@ function TextInstanceCRUD() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Text Instances Found</h3>
-        <p className="text-gray-500">This text doesn't have any instances yet.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Text Details Found</h3>
+        <p className="text-gray-500">This text doesn't have any details yet.</p>
       </div>
     );
   }
@@ -260,7 +260,7 @@ function TextInstanceCRUD() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
           <p className="text-gray-600 mt-1">
-            Found {instances.length} instance{instances.length !== 1 ? 's' : ''}
+            Found {instances.length} detail{instances.length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex space-x-3">
@@ -270,7 +270,7 @@ function TextInstanceCRUD() {
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Create Instance
+            Create Details
           </Button>
    
         </div>
@@ -287,7 +287,7 @@ function TextInstanceCRUD() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">Create Text Instance</h3>
+              <h3 className="text-xl font-semibold">Create Text Details</h3>
               <Button
               variant={'ghost'}
                 onClick={closeModal}
@@ -511,7 +511,7 @@ function TextInstanceCRUD() {
                       Creating...
                     </>
                   ) : (
-                    'Create Instance'
+                    'Create Details'
                   )}
                 </Button>
               </div>

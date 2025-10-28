@@ -33,10 +33,10 @@ const Index = () => {
           <div className="bg-white rounded-lg shadow-md p-8">
             <p className="text-black-600 mb-6">
               A comprehensive system for managing Tibetan texts and their
-              Instances.
+              Details.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
               <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                 <div className="text-blue-600 mb-3">
                   <svg
@@ -66,34 +66,6 @@ const Index = () => {
               </div>
 
               <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                <div className="text-green-600 mb-3">
-                  <svg
-                    className="w-12 h-12"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Text Instances</h3>
-                <p className="text-gray-600 mb-4">
-                  Create and manage different versions of texts.
-                </p>
-                <button
-                  onClick={() => setActiveTab("create")}
-                  className="text-green-600 hover:text-green-800 font-medium cursor-pointer"
-                >
-                  Create Instance
-                </button>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                 <div className="text-purple-600 mb-3">
                   <svg
                     className="w-12 h-12"
@@ -120,16 +92,6 @@ const Index = () => {
                   View Persons
                 </a>
               </div>
-            </div>
-
-            <div className="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                Quick Start
-              </h3>
-              <p className="text-blue-800 mb-4">
-                Create a text and its instance in one unified flow. Click the
-                "Create" button above to get started.
-              </p>
             </div>
           </div>
         </div>
