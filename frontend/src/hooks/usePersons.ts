@@ -89,9 +89,6 @@ export const useCreatePerson = () => {
     mutationFn: createPerson,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['persons'] });
-    },
-    onError: (error) => {
-      console.error('Error creating person:', error);
     }
   });
 };
@@ -103,9 +100,6 @@ export const useUpdatePerson = () => {
     mutationFn: updatePerson,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['persons'] });
-    },
-    onError: (error) => {
-      console.error('Error updating person:', error);
     }
   });
 };
@@ -117,9 +111,6 @@ export const useDeletePerson = () => {
     mutationFn: deletePerson,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['persons'] });
-    },
-    onError: (error) => {
-      console.error('Error deleting person:', error);
     }
   });
 };

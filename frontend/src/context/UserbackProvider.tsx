@@ -26,11 +26,8 @@ export const UserbackProvider: React.FC<UserbackProviderProps> = ({ children }) 
         const instance = await Userback(usebackId, options);
  
         setUserback(instance);
-        
-        
       } catch (error) {
-        console.error('Failed to initialize Userback:', error);
-        // Add more detailed error information
+        // Userback initialization failed silently
       }
     };
     
