@@ -31,40 +31,18 @@ const TextCRUD = () => {
     }));
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-500 mb-4">Error loading texts</p>
-        <button
-          onClick={() => refetch()}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">Text Management</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Text Management</h2>
       </div>
 
       {/* Content */}
       <div className="space-y-4">
         {/* Filters and Controls */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
             <div>
               <label
                 htmlFor="limit"
@@ -133,35 +111,19 @@ const TextCRUD = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
-            <div className="flex items-end">
-              <Button
-                onClick={() =>
-                  handlePaginationChange({
-                    limit: 10,
-                    offset: 0,
-                    language: "",
-                    author: "",
-                  })
-                }
-                variant="outline"
-                className="w-full"
-              >
-                Reset Filters
-              </Button>
-            </div>
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 pt-4 border-t border-gray-200">
             <Button
               onClick={handlePrevPage}
               disabled={pagination.offset === 0}
               variant="outline"
+              className="w-full sm:w-auto"
             >
               Previous
             </Button>
-            <span className="text-sm text-gray-600">
+            <span className="text-xs sm:text-sm text-gray-600 text-center">
               Showing {pagination.offset + 1} -{" "}
               {pagination.offset + texts.length}
             </span>
@@ -169,17 +131,47 @@ const TextCRUD = () => {
               onClick={handleNextPage}
               disabled={texts.length < pagination.limit}
               variant="outline"
+              className="w-full sm:w-auto"
             >
               Next
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {texts.map((text: OpenPechaText) => (
-            <TextListCard key={text.id} text={text} />
-          ))}
-        </div>
+        {/* Text Cards Section with Loading/Error States */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64 bg-white rounded-lg shadow-md mx-1 sm:mx-0">
+            <div className="text-center px-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-sm sm:text-base text-gray-600">Loading texts...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-8 mx-1 sm:mx-0">
+            <div className="text-center">
+              <p className="text-sm sm:text-base text-red-500 mb-4">Error loading texts</p>
+              <button
+                onClick={() => refetch()}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors text-sm sm:text-base"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : texts.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-8 mx-1 sm:mx-0">
+            <div className="text-center text-gray-500">
+              <p className="text-base sm:text-lg">No texts found</p>
+              <p className="text-xs sm:text-sm mt-2">Try adjusting your filters</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {texts.map((text: OpenPechaText) => (
+              <TextListCard key={text.id} text={text} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
