@@ -22,7 +22,6 @@ const UnifiedCreationForm = () => {
   const [createdTextId, setCreatedTextId] = useState<string | null>(null);
   const [textSearch, setTextSearch] = useState("");
   const [showTextDropdown, setShowTextDropdown] = useState(false);
-  const [textFormData, setTextFormData] = useState<any>(null);
 
   // Debounced search
   const [debouncedTextSearch, setDebouncedTextSearch] = useState("");
@@ -96,11 +95,6 @@ const UnifiedCreationForm = () => {
     }
   };
 
-  // Handle text creation (just store the data, don't submit yet)
-  const handleTextCreation = async (textData: any) => {
-    setTextFormData(textData);
-  };
-
   // Handle unified creation: create text (if new) then create instance
   const handleInstanceCreation = async (instanceData: any) => {
     setError(null);
@@ -110,8 +104,15 @@ const UnifiedCreationForm = () => {
     try {
       let textId = selectedText?.id;
 
-      // If creating new text, create it first
-      if (currentStep === "text" && textFormData) {
+      // If creating new text, get form data and create it first
+      if (currentStep === "text") {
+        // Get form data from the global function
+        const textFormData = (window as any).__getTextFormData?.();
+
+        if (!textFormData) {
+          throw new Error("Text form data not available");
+        }
+
         const newText = await createTextMutation.mutateAsync(textFormData);
         textId = newText.id;
         setCreatedTextId(newText.id);
@@ -130,7 +131,26 @@ const UnifiedCreationForm = () => {
         navigate("/texts");
       }, 1500);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      console.error("Error creating text/instance:", err);
+
+      let errorMessage = "Unknown error";
+
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "object" && err !== null) {
+        // Try to extract error details from API response
+        const errorObj = err as any;
+        if (errorObj.response?.data?.detail) {
+          errorMessage = errorObj.response.data.detail;
+        } else if (errorObj.response?.data?.message) {
+          errorMessage = errorObj.response.data.message;
+        } else if (errorObj.message) {
+          errorMessage = errorObj.message;
+        } else {
+          errorMessage = JSON.stringify(err);
+        }
+      }
+
       setError(`Failed to create: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
@@ -263,11 +283,7 @@ const UnifiedCreationForm = () => {
           <h2 className="text-xl font-semibold mb-4">
             Step 2: Create New Text
           </h2>
-          <TextCreationForm
-            onSubmit={handleTextCreation}
-            isSubmitting={isSubmitting}
-            onCancel={() => setCurrentStep("select")}
-          />
+          <TextCreationForm />
         </Card>
       )}
 

@@ -7,6 +7,87 @@ const API_ENDPOINT = process.env.OPENPECHA_ENDPOINT;
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Text:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Unique identifier for the text
+ *           example: "EXP_0001"
+ *         type:
+ *           type: string
+ *           enum: [root, translation, commentary]
+ *           description: Type of the text
+ *           example: "root"
+ *         title:
+ *           type: object
+ *           description: Localized titles
+ *           additionalProperties:
+ *             type: string
+ *           example:
+ *             bo: "རྩ་བའི་གཞུང་།"
+ *             en: "Root Text"
+ *         language:
+ *           type: string
+ *           description: Primary language code
+ *           example: "bo"
+ *         parent:
+ *           type: string
+ *           nullable: true
+ *           description: Parent text ID (for translations/commentaries)
+ *           example: "EXP_0001"
+ *         contributions:
+ *           type: array
+ *           description: List of contributors
+ *           items:
+ *             oneOf:
+ *               - type: object
+ *                 properties:
+ *                   person_id:
+ *                     type: string
+ *                     example: "P12345678"
+ *                   role:
+ *                     type: string
+ *                     enum: [author, translator, reviser, scholar]
+ *                     example: "author"
+ *               - type: object
+ *                 properties:
+ *                   ai_id:
+ *                     type: string
+ *                     example: "gpt-4"
+ *                   role:
+ *                     type: string
+ *                     enum: [author, translator, reviser, scholar]
+ *                     example: "translator"
+ *         date:
+ *           type: string
+ *           nullable: true
+ *           description: Date associated with the text
+ *           example: "2024-01-15"
+ *         bdrc:
+ *           type: string
+ *           nullable: true
+ *           description: BDRC reference
+ *           example: "W1234"
+ *         wiki:
+ *           type: string
+ *           nullable: true
+ *           description: Wikipedia or wiki reference URL
+ *           example: "https://en.wikipedia.org/wiki/Example"
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *           description: Timestamp when the text was created
+ *         updated_at:
+ *           type: string
+ *           format: date-time
+ *           description: Timestamp when the text was last updated
+ */
+
+/**
+ * @swagger
  * /text:
  *   get:
  *     summary: Get texts from OpenPecha API
@@ -46,7 +127,34 @@ const API_ENDPOINT = process.env.OPENPECHA_ENDPOINT;
  *                 results:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Text'
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "EXP_0001"
+ *                       type:
+ *                         type: string
+ *                         enum: [root, translation, commentary]
+ *                       title:
+ *                         type: object
+ *                         additionalProperties:
+ *                           type: string
+ *                       language:
+ *                         type: string
+ *                       parent:
+ *                         type: string
+ *                         nullable: true
+ *                       contributions:
+ *                         type: array
+ *                       date:
+ *                         type: string
+ *                         nullable: true
+ *                       bdrc:
+ *                         type: string
+ *                         nullable: true
+ *                       wiki:
+ *                         type: string
+ *                         nullable: true
  *                 count:
  *                   type: integer
  *                   description: Total number of texts
@@ -55,7 +163,10 @@ const API_ENDPOINT = process.env.OPENPECHA_ENDPOINT;
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
  */
 router.get("/", async (req, res) => {
   try {
@@ -258,6 +369,111 @@ router.post("/", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /text/{id}:
+ *   get:
+ *     summary: Get a specific text by ID
+ *     description: Retrieves detailed information about a specific text from the OpenPecha API
+ *     tags:
+ *       - Texts
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The unique identifier of the text
+ *         example: "EXP_0001"
+ *     responses:
+ *       200:
+ *         description: Text retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   example: "EXP_0001"
+ *                 type:
+ *                   type: string
+ *                   enum: [root, translation, commentary]
+ *                   example: "root"
+ *                 title:
+ *                   type: object
+ *                   description: Localized titles
+ *                   additionalProperties:
+ *                     type: string
+ *                   example:
+ *                     bo: "རྩ་བའི་གཞུང་།"
+ *                     en: "Root Text"
+ *                 language:
+ *                   type: string
+ *                   example: "bo"
+ *                 parent:
+ *                   type: string
+ *                   nullable: true
+ *                   example: null
+ *                 contributions:
+ *                   type: array
+ *                   items:
+ *                     oneOf:
+ *                       - type: object
+ *                         properties:
+ *                           person_id:
+ *                             type: string
+ *                             example: "P12345678"
+ *                           role:
+ *                             type: string
+ *                             example: "author"
+ *                       - type: object
+ *                         properties:
+ *                           ai_id:
+ *                             type: string
+ *                             example: "gpt-4"
+ *                           role:
+ *                             type: string
+ *                             example: "translator"
+ *                 date:
+ *                   type: string
+ *                   nullable: true
+ *                   example: "2024-01-15"
+ *                 bdrc:
+ *                   type: string
+ *                   nullable: true
+ *                   example: "W1234"
+ *                 wiki:
+ *                   type: string
+ *                   nullable: true
+ *                   example: "https://en.wikipedia.org/wiki/Example"
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *                 updated_at:
+ *                   type: string
+ *                   format: date-time
+ *       404:
+ *         description: Text not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Text not found"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to retrieve text"
+ */
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
   const apiUrl = `${API_ENDPOINT}/texts/${id}`;
@@ -269,6 +485,101 @@ router.get("/:id", async (req, res) => {
   res.json(response.data);
 });
 
+/**
+ * @swagger
+ * /text/{id}/instances:
+ *   get:
+ *     summary: Get all instances of a specific text
+ *     description: Retrieves a list of all instances associated with a specific text from the OpenPecha API
+ *     tags:
+ *       - Instances
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The unique identifier of the text
+ *         example: "EXP_0001"
+ *     responses:
+ *       200:
+ *         description: List of instances retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     description: Unique identifier for the instance
+ *                     example: "INST_0001"
+ *                   text_id:
+ *                     type: string
+ *                     description: ID of the associated text
+ *                     example: "EXP_0001"
+ *                   title:
+ *                     type: object
+ *                     description: Localized titles
+ *                     additionalProperties:
+ *                       type: string
+ *                     example:
+ *                       bo: "དཔེ་ཆ་མཚན།"
+ *                       en: "Instance Title"
+ *                   language:
+ *                     type: string
+ *                     description: Language code
+ *                     example: "bo"
+ *                   format:
+ *                     type: string
+ *                     description: Format of the instance
+ *                     example: "digital"
+ *                   source:
+ *                     type: string
+ *                     description: Source of the instance
+ *                     example: "BDRC"
+ *                   volume:
+ *                     type: string
+ *                     description: Volume information
+ *                     example: "Vol. 1"
+ *                   location:
+ *                     type: object
+ *                     description: Location information
+ *                     properties:
+ *                       start:
+ *                         type: string
+ *                         example: "1a"
+ *                       end:
+ *                         type: string
+ *                         example: "10b"
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *                   updated_at:
+ *                     type: string
+ *                     format: date-time
+ *       404:
+ *         description: Text not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Text not found"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to retrieve instances"
+ */
 router.get("/:id/instances", async (req, res) => {
   const { id } = req.params;
   const apiUrl = `${API_ENDPOINT}/texts/${id}/instances`;
@@ -410,6 +721,8 @@ router.post("/:id/instances", async (req, res) => {
       },
     });
 
+    console.log("Response from OpenPecha API:", response.data);
+
     res.status(201).json(response.data);
   } catch (error) {
     console.error("Error creating text instance:", error.message);
@@ -428,6 +741,101 @@ router.post("/:id/instances", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /text/instances/{instanceId}:
+ *   get:
+ *     summary: Get a specific text instance by ID
+ *     description: Retrieves detailed information about a specific text instance from the OpenPecha API
+ *     tags:
+ *       - Instances
+ *     parameters:
+ *       - in: path
+ *         name: instanceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The unique identifier of the text instance
+ *         example: "tZ0gbaPaArzU71mB"
+ *     responses:
+ *       200:
+ *         description: Text instance retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   description: Unique identifier for the instance
+ *                   example: "INST_0001"
+ *                 text_id:
+ *                   type: string
+ *                   description: ID of the associated text
+ *                   example: "EXP_0001"
+ *                 title:
+ *                   type: object
+ *                   description: Localized titles
+ *                   additionalProperties:
+ *                     type: string
+ *                   example:
+ *                     bo: "དཔེ་ཆ་མཚན།"
+ *                     en: "Instance Title"
+ *                 language:
+ *                   type: string
+ *                   description: Language code
+ *                   example: "bo"
+ *                 format:
+ *                   type: string
+ *                   description: Format of the instance
+ *                   example: "digital"
+ *                 source:
+ *                   type: string
+ *                   description: Source of the instance
+ *                   example: "BDRC"
+ *                 volume:
+ *                   type: string
+ *                   description: Volume information
+ *                   example: "Vol. 1"
+ *                 location:
+ *                   type: object
+ *                   description: Location information
+ *                   properties:
+ *                     start:
+ *                       type: string
+ *                       example: "1a"
+ *                     end:
+ *                       type: string
+ *                       example: "10b"
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Timestamp when the instance was created
+ *                 updated_at:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Timestamp when the instance was last updated
+ *       404:
+ *         description: Instance not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Instance not found"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to retrieve instance"
+ */
 router.get("/instances/:instanceId", async (req, res) => {
   const { instanceId } = req.params;
   const apiUrl = `${API_ENDPOINT}/instances/${instanceId}`;
