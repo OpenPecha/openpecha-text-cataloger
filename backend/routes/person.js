@@ -152,7 +152,6 @@ router.get('/', async (req, res) => {
  
     res.json(response.data);
   } catch (error) {
-    console.error('Error fetching persons:', error.message);
     res.status(500).json({
       error: 'Failed to fetch persons from OpenPecha API',
       details: error.message
@@ -211,7 +210,6 @@ router.get("/:id", async (req, res) => {
         details: error.message
       });
     } else {
-      console.error('Error fetching person:', error.message);
       res.status(500).json({
         error: 'Failed to fetch person from OpenPecha API',
         details: error.message
@@ -320,8 +318,6 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(response.data);
   } catch (error) {
-    console.error('Error creating person:', error.message);
-    
     if (error.response) {
       // Forward the error response from OpenPecha API
       res.status(error.response.status).json({
