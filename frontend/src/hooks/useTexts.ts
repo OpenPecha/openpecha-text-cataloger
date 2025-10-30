@@ -55,10 +55,7 @@ export const useCreateText = () => {
     mutationFn: createText,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["texts"] });
-    },
-    onError: (error) => {
-      console.error("Error creating text:", error);
-    },
+    }
   });
 };
 
@@ -75,9 +72,6 @@ export const useCreateTextInstance = () => {
     }) => createTextInstance(textId, instanceData),
     onSuccess: (_, { textId }) => {
       queryClient.invalidateQueries({ queryKey: ["textInstance", textId] });
-    },
-    onError: (error) => {
-      console.error("Error creating text instance:", error);
-    },
+    }
   });
 };

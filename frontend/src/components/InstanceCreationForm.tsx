@@ -277,7 +277,6 @@ const InstanceCreationForm = ({
     }
 
     const cleanedData = cleanFormData();
-    console.log("Submitting instance data:", cleanedData);
     onSubmit(cleanedData);
   };
 

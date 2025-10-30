@@ -33,7 +33,7 @@ interface TitleEntry {
 
 const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
   const navigate = useNavigate();
-  
+
   const [selectedType, setSelectedType] = useState<
     "root" | "commentary" | "translation" | ""
   >("");
@@ -185,11 +185,11 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
     if (!selectedType) {
       throw new Error("Type is required");
     }
-    
+
     if (!language.trim()) {
       throw new Error("Language is required");
     }
-    
+
     // Build title object from titles array
     const title: Record<string, string> = {};
     titles.forEach((titleEntry) => {
@@ -197,11 +197,11 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
         title[titleEntry.language] = titleEntry.value.trim();
       }
     });
-    
+
     if (Object.keys(title).length === 0) {
       throw new Error("At least one title is required");
     }
-    
+
     if (contributors.length === 0) {
       throw new Error("At least one contributor is required");
     }
@@ -241,7 +241,6 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
     if (bdrc.trim()) textData.bdrc = bdrc.trim();
     if (wiki.trim()) textData.wiki = wiki.trim();
 
-    console.log("Built text form data:", textData);
     return textData;
   }, [selectedType, titles, language, parent, contributors, date, bdrc, wiki]);
 
@@ -314,7 +313,7 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
             htmlFor="parent"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Parent Text ID <span className="text-red-500">*</span>
+            Parent Text ID
           </label>
           <input
             id="parent"
@@ -322,7 +321,7 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
             value={parent}
             onChange={(e) => setParent(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Parent text ID or 'N/A' for standalone"
+            placeholder="Leave empty for N/A"
           />
 
           {errors.parent && (
@@ -449,7 +448,8 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
                           {getPersonDisplayName(contributor.person!)}
                         </div>
                         <div className="text-sm text-gray-500">
-                          Person ID: {contributor.person!.id} • Role: {contributor.role}
+                          Person ID: {contributor.person!.id} • Role:{" "}
+                          {contributor.role}
                         </div>
                       </>
                     ) : (
@@ -533,7 +533,7 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
                     onBlur={() =>
                       setTimeout(() => setShowPersonDropdown(false), 200)
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-base leading-relaxed"
                     placeholder="Search for person..."
                   />
 
@@ -554,7 +554,7 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
                         <Plus className="w-4 h-4" />
                         Create New Person
                       </button>
-                      
+
                       {filteredPersons.length > 0 ? (
                         <>
                           {filteredPersons.map((person) => (
@@ -583,8 +583,11 @@ const TextCreationForm = ({ onDataChange }: TextCreationFormProps) => {
 
                   {selectedPerson && (
                     <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-                      <div className="text-blue-600">
+                      <div className="text-blue-600 font-medium">
                         Selected: {getPersonDisplayName(selectedPerson)}
+                      </div>
+                      <div className="text-blue-500 text-xs mt-1">
+                        ID: {selectedPerson.id}
                       </div>
                     </div>
                   )}

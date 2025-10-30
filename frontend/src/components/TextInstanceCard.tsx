@@ -37,14 +37,39 @@ const TextInstanceCard: React.FC<TextInstanceCardProps> = ({ instance }) => {
     }
   };
 
-  const title=instance.incipit_title?instance.incipit_title?.bo:instance.colophon;
+  // Title logic: 
+  // 1. Try Tibetan incipit title
+  // 2. If not, try first available language in incipit_title
+  // 3. If no incipit_title, show "Text Instance (colophon)"
+  let title = "";
+  
+  if (instance.incipit_title && typeof instance.incipit_title === 'object') {
+    const incipitObj = instance.incipit_title as Record<string, string>;
+    if (incipitObj.bo) {
+      title = incipitObj.bo;
+    } else {
+      // Get first available language from incipit_title
+      const firstLanguage = Object.keys(incipitObj)[0];
+      if (firstLanguage) {
+        title = incipitObj[firstLanguage];
+      }
+    }
+  }
+  
+  // If no incipit_title, format with colophon
+  if (!title) {
+    title = instance.colophon 
+      ? `Text Instance (${instance.colophon})` 
+      : "Text Instance";
+  }
+
   return (
     <Link to={`/texts/${text_id}/instances/${instance.id}`} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
-            {title || "Text Instance"}
+            {title}
           </h3>
           <p className="text-sm text-gray-500 font-mono">
             ID: 

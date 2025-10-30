@@ -65,8 +65,6 @@ export const fetchInstance = async (id: string): Promise<OpenPechaTextInstance> 
 
 // Real API function for creating text instances
 export const createTextInstance = async (textId: string, instanceData: any): Promise<OpenPechaTextInstance> => {
-  console.log(`Creating instance for text ${textId}:`, instanceData);
-  
   const response = await fetch(`${API_URL}/text/${textId}/instances`, {
     method: 'POST',
     headers: {
@@ -77,7 +75,6 @@ export const createTextInstance = async (textId: string, instanceData: any): Pro
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Instance creation failed:', response.status, errorText);
     
     try {
       const errorData = JSON.parse(errorText);

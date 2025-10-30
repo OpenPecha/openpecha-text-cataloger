@@ -8,13 +8,18 @@ import TextInstanceCard from "@/components/TextInstanceCard";
 import BreadCrumb from "@/components/BreadCrumb";
 import InstanceCreationForm from "@/components/InstanceCreationForm";
 import type { OpenPechaTextInstance } from "@/types/text";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { CheckCircle, XCircle } from "lucide-react";
 
 function TextInstanceCRUD() {
   const { text_id } = useParams();
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const {
     data: instances = [],
@@ -38,11 +43,17 @@ function TextInstanceCRUD() {
           setShowModal(false);
           setIsSubmitting(false);
           refetch();
-          alert("Text instance created successfully!");
+          setNotification({
+            type: 'success',
+            message: 'Text instance created successfully!'
+          });
         },
         onError: (error) => {
           setIsSubmitting(false);
-          alert(`Error creating instance: ${error.message}`);
+          setNotification({
+            type: 'error',
+            message: error.message || 'Failed to create instance'
+          });
         },
       }
     );
@@ -55,6 +66,16 @@ function TextInstanceCRUD() {
   const closeModal = () => {
     setShowModal(false);
   };
+
+  // Auto-dismiss notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   if (isLoading) {
     return (
@@ -193,6 +214,49 @@ function TextInstanceCRUD() {
               isSubmitting={isSubmitting}
               onCancel={closeModal}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5 duration-300">
+          <div
+            className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg border-2 min-w-[320px] ${
+              notification.type === 'success'
+                ? 'bg-green-50 border-green-500 text-green-900'
+                : 'bg-red-50 border-red-500 text-red-900'
+            }`}
+          >
+            {notification.type === 'success' ? (
+              <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+            ) : (
+              <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
+            )}
+            <div className="flex-1">
+              <p className="font-semibold text-sm">
+                {notification.type === 'success' ? 'Success!' : 'Error'}
+              </p>
+              <p className="text-sm mt-1">{notification.message}</p>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="text-gray-500 hover:text-gray-700 flex-shrink-0"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       )}

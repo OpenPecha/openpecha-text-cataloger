@@ -131,8 +131,6 @@ const UnifiedCreationForm = () => {
         navigate("/texts");
       }, 1500);
     } catch (err: unknown) {
-      console.error("Error creating text/instance:", err);
-
       let errorMessage = "Unknown error";
 
       if (err instanceof Error) {
