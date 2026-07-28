@@ -333,6 +333,10 @@ class DocumentListResponse(BaseModel):
     filename: Optional[str] = None
     user_id: Optional[str] = None
     reviewer_id: Optional[str] = None
+    reviewer_user: Optional[RejectedSegmentReviewerUser] = Field(
+        None,
+        description="Assigned document reviewer (name/picture) when reviewer_id is set.",
+    )
     total_segments: int
     annotated_segments: int
     rejection_count: int = 0  # Segments with status rejected in this document

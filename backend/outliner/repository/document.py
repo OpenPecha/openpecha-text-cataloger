@@ -86,6 +86,16 @@ def list_documents(
     rejection_comments_by_doc = _rejection_comment_counts_by_document_ids(db, doc_ids)
     rejection_open_segments_by_doc = _rejection_open_segments_by_document_ids(db, doc_ids)
 
+    reviewer_ids = {d.reviewer_id for d in documents if d.reviewer_id}
+    reviewer_by_id: Dict[str, Dict[str, Any]] = {}
+    if reviewer_ids:
+        for uid, name, picture in (
+            db.query(User.id, User.name, User.picture)
+            .filter(User.id.in_(reviewer_ids))
+            .all()
+        ):
+            reviewer_by_id[str(uid)] = {"name": name, "picture": picture}
+
     result = []
     for doc in documents:
         agg = counts_by_doc.get(doc.id)
@@ -105,12 +115,16 @@ def list_documents(
         rejection_resolved = doc.id in resolved_rejection_doc_ids
         if (doc.status or "") not in ("approved", "completed"):
             rejection_resolved = False
+        reviewer_user = (
+            reviewer_by_id.get(str(doc.reviewer_id)) if doc.reviewer_id else None
+        )
         result.append(
             {
                 "id": doc.id,
                 "filename": doc.filename,
                 "user_id": doc.user_id,
                 "reviewer_id": doc.reviewer_id,
+                "reviewer_user": reviewer_user,
                 "checked_segments": checked,
                 "unchecked_segments": unchecked,
                 "total_segments": total,

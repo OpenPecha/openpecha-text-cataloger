@@ -312,6 +312,24 @@ const OutlinerUpload: React.FC = () => {
                           {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
 
                           </p>
+                          {doc.reviewer_id && (
+                            <div
+                              className="flex items-center gap-1.5 text-xs text-gray-500"
+                              title="Assigned reviewer"
+                            >
+                              {doc.reviewer_user?.picture ? (
+                                <img
+                                  src={doc.reviewer_user.picture}
+                                  alt=""
+                                  className="h-4 w-4 rounded-full"
+                                />
+                              ) : null}
+                              <span>
+                                Reviewer:{' '}
+                                {doc.reviewer_user?.name?.trim() || 'Assigned'}
+                              </span>
+                            </div>
+                          )}
                           {doc.rejected_segment && (
                             <div className="flex items-start gap-2">
                               <AlertTriangle className="mt-0.5 animate-bounce h-4 w-4 shrink-0 text-red-600" aria-hidden />

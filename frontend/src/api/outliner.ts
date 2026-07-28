@@ -66,6 +66,8 @@ export interface OutlinerDocumentListItem {
   filename?: string | null;
   user_id?: string | null;
   reviewer_id?: string | null;
+  /** Assigned document reviewer when reviewer_id is set. */
+  reviewer_user?: { name?: string | null; picture?: string | null } | null;
   total_segments: number;
   annotated_segments: number;
   progress_percentage: number;
