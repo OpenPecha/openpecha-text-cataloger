@@ -22,7 +22,7 @@ import {
 import { searchUsers } from '@/api/user';
 import { VolumeImagePanelCore } from '@/components/outliner/ImageWrapper';
 import { useVolumeHasImages } from '@/features/outliner/bdrc/hook/useBdrcOtVolume';
-import {  useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,12 +93,13 @@ function SegmentsTab({
   onToggleExpansion,
 }: SegmentsTabProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<SegmentStatusFilter>('all');
   const [imagesPanelVisible, setImagesPanelVisible] = useState(false);
   const hasImages = useVolumeHasImages(selectedDocument?.filename ?? null);
   const [isReassignDialogOpen, setIsReassignDialogOpen] = useState(false);
   const [userSearch, setUserSearch] = useState('');
+  /** After a successful Submit, keep the button disabled until this document is left and opened again. */
+  const [submittedThisVisit, setSubmittedThisVisit] = useState(false);
   const { documentId } = useParams<{ documentId: string }>();
   const queryClient = useQueryClient();
   const { user: currentUser } = useUser();
@@ -108,6 +109,10 @@ function SegmentsTab({
   const handledScrollNonce = useRef<number | null>(null);
   const canEditReview =
     !!currentUser?.id && selectedDocument?.reviewer_id === currentUser.id;
+
+  useEffect(() => {
+    setSubmittedThisVisit(false);
+  }, [documentId]);
   const isAdminOrReviewer =
     currentUser?.role === 'admin' || currentUser?.role === 'reviewer';
   const canClaimReview =
@@ -223,11 +228,11 @@ function SegmentsTab({
       return approveOutlinerDocument(documentId);
     },
     onSuccess: async () => {
+      setSubmittedThisVisit(true);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['outliner-admin-document', documentId] }),
         queryClient.invalidateQueries({ queryKey: ['outliner-admin-documents'] }),
       ]);
-      navigate(`/outliner-admin/documents`);
       toast.success('Document approved successfully');
     },
     onError: (error: Error) => {
@@ -539,6 +544,7 @@ function SegmentsTab({
                 size="sm"
                 onClick={handleApproveAll}
                 disabled={
+                  submittedThisVisit ||
                   approveDocumentMutation.isPending ||
                   !documentId ||
                   !canEditReview ||
@@ -546,9 +552,11 @@ function SegmentsTab({
                 }
                 className="cursor-pointer shrink-0"
                 title={
-                  statusCounts.approved < segments.length
-                    ? `${segments.length - statusCounts.approved} segment(s) are not yet approved`
-                    : 'Approve document'
+                  submittedThisVisit
+                    ? 'Reviewed'
+                    : statusCounts.approved < segments.length
+                      ? `${segments.length - statusCounts.approved} segment(s) are not yet approved`
+                      : 'Approve document'
                 }
               >
                 {approveDocumentMutation.isPending ? 'Approving...' : 'Submit'}
