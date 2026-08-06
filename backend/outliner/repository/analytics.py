@@ -553,11 +553,24 @@ def get_dashboard_stats(
         or 0
     )
 
+    # annotated_segments = (
+    #     _apply_segment_activity_window_to_query(
+    #         seg_base.filter(has_title_or_author, segment_pending_review_when),
+    #         start_date,
+    #         end_date,
+    #     )
+    #     .with_entities(func.count(OutlinerSegment.id))
+    #     .scalar()
+    #     or 0
+    # )
+    reviewable_doc_ids_subq = (
+        doc_query.filter(OutlinerDocument.status != "skipped").subquery()
+    )
     annotated_segments = (
-        _apply_segment_activity_window_to_query(
-            seg_base.filter(has_title_or_author, segment_pending_review_when),
-            start_date,
-            end_date,
+        seg_base.filter(
+            has_title_or_author,
+            segment_pending_review_when,
+            OutlinerSegment.document_id.in_(db.query(reviewable_doc_ids_subq.c.id)),
         )
         .with_entities(func.count(OutlinerSegment.id))
         .scalar()
