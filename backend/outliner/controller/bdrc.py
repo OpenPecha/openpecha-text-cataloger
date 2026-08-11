@@ -9,7 +9,14 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from bdrc.main import get_new_volume
-from bdrc.volume import SegmentInput, VolumeInput, get_volume, update_volume, update_volume_status
+from bdrc.volume import (
+    SegmentInput,
+    VolumeInput,
+    aclose_http_client,
+    get_volume,
+    update_volume,
+    update_volume_status,
+)
 
 from core.database import SessionLocal
 from outliner.models.outliner import OutlinerDocument
@@ -133,6 +140,20 @@ async def _push_document_segments_to_bdrc(
     )
 
 
+async def _push_with_client_cleanup(
+    document: OutlinerDocument,
+    bdrc_status: str,
+    modified_by: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Push, then close this loop's BDRC client so it never outlives the loop."""
+    try:
+        return await _push_document_segments_to_bdrc(
+            document, bdrc_status, modified_by=modified_by
+        )
+    finally:
+        await aclose_http_client()
+
+
 def _push_document_segments_to_bdrc_background(
     document_id: str,
     bdrc_status: str,
@@ -144,7 +165,7 @@ def _push_document_segments_to_bdrc_background(
         document = get_document(db, document_id, include_segments=True)
         modified_by = _bdrc_modified_by_from_document(db, document)
         asyncio.run(
-            _push_document_segments_to_bdrc(
+            _push_with_client_cleanup(
                 document, bdrc_status, modified_by=modified_by
             )
         )

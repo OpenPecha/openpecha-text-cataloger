@@ -1,6 +1,8 @@
+import asyncio
 import httpx
 import os
 from typing import Literal, Optional, Dict, Any, List
+from weakref import WeakKeyDictionary
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -31,21 +33,39 @@ class VolumeInput(BaseModel):
     segments: Optional[List[SegmentInput]] = None
     modified_by: Optional[str] = None
 
-# Async HTTP client with connection pooling (reused across requests)
-_http_client: Optional[httpx.AsyncClient] = None
+# Keyed by event loop, not shared: pooled connections belong to the loop that opened
+# them, so a client reused after a background `asyncio.run` loop closes fails with
+# "Event loop is closed".
+_http_clients: "WeakKeyDictionary[asyncio.AbstractEventLoop, httpx.AsyncClient]" = (
+    WeakKeyDictionary()
+)
+
+
+def _new_http_client() -> httpx.AsyncClient:
+    # No request timeout: large volume updates and bulk sync can exceed any fixed limit.
+    return httpx.AsyncClient(
+        timeout=None,
+        limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+        follow_redirects=True,
+    )
 
 
 async def get_http_client() -> httpx.AsyncClient:
-    """Get or create shared async HTTP client with connection pooling"""
-    global _http_client
-    if _http_client is None:
-        # No request timeout: large volume updates and bulk sync can exceed any fixed limit.
-        _http_client = httpx.AsyncClient(
-            timeout=None,
-            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
-            follow_redirects=True,
-        )
-    return _http_client
+    """Async HTTP client with connection pooling, scoped to the running event loop."""
+    loop = asyncio.get_running_loop()
+    client = _http_clients.get(loop)
+    if client is None or client.is_closed:
+        client = _new_http_client()
+        _http_clients[loop] = client
+    return client
+
+
+async def aclose_http_client() -> None:
+    """Close this loop's client. Call before a short-lived loop exits."""
+    loop = asyncio.get_running_loop()
+    client = _http_clients.pop(loop, None)
+    if client is not None and not client.is_closed:
+        await client.aclose()
 
 
 async def get_volumes(
