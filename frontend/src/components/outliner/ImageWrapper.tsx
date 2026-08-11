@@ -8,7 +8,7 @@ import { useDocument, useCursor, useSelection } from './contexts'
 import { List, useListRef, type RowComponentProps } from 'react-window'
 import { Link2, Loader2 } from 'lucide-react'
 import { getAuth0AccessToken } from '@/lib/auth0AccessToken'
-import { imageUrlForAccess } from '@/lib/imageProxy'
+import { imageUrlForAccess, proxiedImageUrl } from '@/lib/imageProxy'
 import { useAbortableBlobUrl } from '@/hooks/useAbortableBlobUrl'
 import useGetImageInfo from './hooks/useGetImageInfo'
 
@@ -81,18 +81,22 @@ function PageImageRow({
   loadDirectFromIiif,
 }: RowComponentProps<PageImageRowProps>) {
   const pname = pages[index]?.pname
-  const fetchUrl =
+  const iiifUrl =
     volId && pname
-      ? imageUrlForAccess(
-          `https://iiif.bdrc.io/bdr:${volId}::${pname}/full/max/0/default.jpg`,
-          loadDirectFromIiif
-        )
+      ? `https://iiif.bdrc.io/bdr:${volId}::${pname}/full/max/0/default.jpg`
       : null
+  const fetchUrl = iiifUrl
+    ? imageUrlForAccess(iiifUrl, loadDirectFromIiif)
+    : null
+  const fallbackUrl =
+    loadDirectFromIiif && iiifUrl ? proxiedImageUrl(iiifUrl) : null
 
   const blobUrl = useAbortableBlobUrl(fetchUrl, {
     fetchEnabled: fetchImageEnabled,
     // Never send the Auth0 bearer to IIIF — it belongs to the backend only.
     getFetchHeaders: loadDirectFromIiif ? undefined : getProxyImageFetchHeaders,
+    fallbackSrc: fallbackUrl,
+    getFallbackFetchHeaders: getProxyImageFetchHeaders,
   })
 
   const isActive = index === activeIndex
