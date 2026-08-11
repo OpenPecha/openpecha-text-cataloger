@@ -8,7 +8,7 @@ import { useDocument, useCursor, useSelection } from './contexts'
 import { List, useListRef, type RowComponentProps } from 'react-window'
 import { Link2, Loader2 } from 'lucide-react'
 import { getAuth0AccessToken } from '@/lib/auth0AccessToken'
-import { proxiedImageUrl } from '@/lib/imageProxy'
+import { imageUrlForAccess } from '@/lib/imageProxy'
 import { useAbortableBlobUrl } from '@/hooks/useAbortableBlobUrl'
 import useGetImageInfo from './hooks/useGetImageInfo'
 
@@ -63,6 +63,8 @@ type PageImageRowProps = {
   /** When false, image fetch is paused (e.g. while the list is scrolling). */
   fetchImageEnabled: boolean
   getProxyImageFetchHeaders?: () => Promise<HeadersInit | undefined>
+  /** True when IIIF serves this volume anonymously, so rows can bypass the proxy. */
+  loadDirectFromIiif: boolean
 }
 
 function PageImageRow({
@@ -76,18 +78,21 @@ function PageImageRow({
   activeIndex,
   fetchImageEnabled,
   getProxyImageFetchHeaders,
+  loadDirectFromIiif,
 }: RowComponentProps<PageImageRowProps>) {
   const pname = pages[index]?.pname
   const fetchUrl =
     volId && pname
-      ? proxiedImageUrl(
-          `https://iiif.bdrc.io/bdr:${volId}::${pname}/full/max/0/default.jpg`
+      ? imageUrlForAccess(
+          `https://iiif.bdrc.io/bdr:${volId}::${pname}/full/max/0/default.jpg`,
+          loadDirectFromIiif
         )
       : null
 
   const blobUrl = useAbortableBlobUrl(fetchUrl, {
     fetchEnabled: fetchImageEnabled,
-    getFetchHeaders: getProxyImageFetchHeaders,
+    // Never send the Auth0 bearer to IIIF — it belongs to the backend only.
+    getFetchHeaders: loadDirectFromIiif ? undefined : getProxyImageFetchHeaders,
   })
 
   const isActive = index === activeIndex
@@ -270,10 +275,14 @@ export function VolumeImagePanelCore({
     return () => ro.disconnect()
   }, [pageCount, volumeFilename])
 
-  const imageInfo = useGetImageInfo({
+  const { info: imageInfo, access: volumeImageAccess } = useGetImageInfo({
     volId: volId ?? '',
     pname: firstPagePname ?? '',
+    getProxyFetchHeaders: getProxyImageFetchHeaders,
   })
+
+  /** Only bypass the proxy once IIIF has confirmed anonymous access for this volume. */
+  const loadDirectFromIiif = volumeImageAccess === 'public'
 
   /** Natural pixel size from IIIF info.json (full resolution, not list row height). */
   const naturalW =
@@ -305,6 +314,7 @@ export function VolumeImagePanelCore({
       activeIndex: previewIndex,
       fetchImageEnabled,
       getProxyImageFetchHeaders,
+      loadDirectFromIiif,
     }
   }, [
     pages,
@@ -313,6 +323,7 @@ export function VolumeImagePanelCore({
     previewIndex,
     fetchImageEnabled,
     getProxyImageFetchHeaders,
+    loadDirectFromIiif,
     t,
   ])
 

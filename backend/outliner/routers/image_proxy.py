@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
-from starlette.responses import Response
+from starlette.responses import StreamingResponse
 
 from outliner.deps import require_outliner_access
 
@@ -22,6 +22,7 @@ _DEFAULT_ALLOWED_HOSTS = (
 )
 _DEFAULT_MAX_BYTES = 25 * 1024 * 1024
 _IIIF_BDRC_HOST_RULES = ("iiif.bdrc.io",)
+_DEFAULT_CACHE_SECONDS = 86400
 
 
 def _bdrc_iiif_authorization_value() -> str | None:
@@ -51,6 +52,21 @@ def _max_bytes() -> int:
         return int(os.getenv("IMAGE_PROXY_MAX_BYTES", str(_DEFAULT_MAX_BYTES)))
     except ValueError:
         return _DEFAULT_MAX_BYTES
+
+
+def _is_iiif_info_request(path: str) -> bool:
+    """True for IIIF Image API `info.json`, the only non-image response allowed through."""
+    return path.rstrip("/").endswith("/info.json")
+
+
+def _cache_seconds() -> int:
+    """Browser cache lifetime for proxied images (0 disables caching)."""
+    try:
+        return max(
+            0, int(os.getenv("IMAGE_PROXY_CACHE_SECONDS", str(_DEFAULT_CACHE_SECONDS)))
+        )
+    except ValueError:
+        return _DEFAULT_CACHE_SECONDS
 
 
 @router.get("/proxy/image")
@@ -84,52 +100,86 @@ async def proxy_external_image(
     if auth and _host_matches(host, list(_IIIF_BDRC_HOST_RULES)):
         headers["Authorization"] = auth
 
+    client = httpx.AsyncClient(
+        follow_redirects=True,
+        timeout=httpx.Timeout(60.0),
+        headers=headers,
+    )
+
+    # Not a `with` block: the response must stay open past these checks, so every
+    # exit path below closes it and the client explicitly.
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            timeout=httpx.Timeout(60.0),
-            headers=headers,
-        ) as client:
-            async with client.stream("GET", url) as r:
-                if r.status_code >= 400:
-                    raise HTTPException(
-                        status_code=502, detail="Upstream image request failed"
-                    )
-                cl = r.headers.get("content-length")
-                if cl:
-                    try:
-                        if int(cl) > max_b:
-                            raise HTTPException(
-                                status_code=413, detail="Image too large"
-                            )
-                    except ValueError:
-                        pass
-                chunks: list[bytes] = []
-                total = 0
-                async for chunk in r.aiter_bytes():
-                    total += len(chunk)
-                    if total > max_b:
-                        raise HTTPException(
-                            status_code=413, detail="Image too large"
-                        )
-                    chunks.append(chunk)
-                body = b"".join(chunks)
-                content_type = r.headers.get("content-type", "image/jpeg")
+        req = client.build_request("GET", url)
+        r = await client.send(req, stream=True)
     except httpx.RequestError as e:
+        await client.aclose()
         raise HTTPException(
             status_code=502, detail=f"Could not fetch image: {e!s}"
         ) from e
 
+    async def _fail(status_code: int, detail: str) -> HTTPException:
+        await r.aclose()
+        await client.aclose()
+        return HTTPException(status_code=status_code, detail=detail)
+
+    if r.status_code >= 400:
+        raise await _fail(502, "Upstream image request failed")
+
+    cl = r.headers.get("content-length")
+    if cl:
+        try:
+            if int(cl) > max_b:
+                raise await _fail(413, "Image too large")
+        except ValueError:
+            pass
+
+    content_type = r.headers.get("content-type", "image/jpeg")
     ct_main = content_type.split(";")[0].strip().lower()
+    # Restricted volumes cannot read info.json from the browser, so it comes through here.
+    allows_json = _is_iiif_info_request(parsed.path)
     if ct_main and not (
         ct_main.startswith("image/")
         or ct_main == "application/octet-stream"
+        or (allows_json and ct_main == "application/json")
     ):
-        raise HTTPException(
-            status_code=502, detail="Upstream response is not an image"
-        )
+        raise await _fail(502, "Upstream response is not an image")
 
-    return Response(
-        content=body,
+    # Read in full before responding: BDRC IIIF usually omits content-length, so the
+    # size cap can only be checked while reading. Relaying as bytes arrive would turn
+    # an oversize image into a truncated body (a corrupt image) instead of a 413.
+    try:
+        body_chunks: list[bytes] = []
+        body_total = 0
+        oversize = False
+        async for chunk in r.aiter_bytes():
+            body_total += len(chunk)
+            if body_total > max_b:
+                oversize = True
+                break
+            body_chunks.append(chunk)
+    except httpx.RequestError as e:
+        raise await _fail(502, f"Could not fetch image: {e!s}") from e
+
+    if oversize:
+        raise await _fail(413, "Image too large")
+
+    await r.aclose()
+    await client.aclose()
+
+    async def _iter_body():
+        """Emit the validated chunks as-is; avoids b"".join and its second full copy."""
+        for chunk in body_chunks:
+            yield chunk
+
+    response_headers = {}
+    cache_s = _cache_seconds()
+    if cache_s > 0:
+        # `private`, not `public`: these may be access-restricted upstream and must
+        # not land in a shared cache.
+        response_headers["Cache-Control"] = f"private, max-age={cache_s}"
+
+    return StreamingResponse(
+        _iter_body(),
         media_type=ct_main or "application/octet-stream",
+        headers=response_headers,
     )

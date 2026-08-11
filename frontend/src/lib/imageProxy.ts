@@ -30,3 +30,20 @@ export function proxiedImageUrl(
 
   return `${API_URL}/outliner/proxy/image?url=${encodeURIComponent(href)}`
 }
+
+/**
+ * Like {@link proxiedImageUrl}, but returns the IIIF URL unchanged when the volume is
+ * known to be readable anonymously, so the request never reaches the backend.
+ *
+ * Only pass `direct: true` after confirming access (see `useGetImageInfo`) — restricted
+ * volumes 401 without the BDRC key that only the backend holds.
+ */
+export function imageUrlForAccess(
+  originalUrl: string | null | undefined,
+  direct: boolean
+): string | null {
+  if (!direct) return proxiedImageUrl(originalUrl)
+  if (originalUrl == null) return null
+  const u = originalUrl.trim()
+  return u || null
+}
