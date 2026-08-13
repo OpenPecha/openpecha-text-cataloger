@@ -67,6 +67,7 @@ from .schemas import (
     SegmentResponse,
     SegmentReviewsResponse,
     SegmentReviewStatusItem,
+    SubmitToBdrcRequest,
 )
 
 router = APIRouter()
@@ -484,15 +485,21 @@ async def get_segment_reviews(
 @router.post("/documents/{document_id}/submit-bdrc-in-review")
 async def submit_document_to_bdrc_in_review(
     document_id: str,
+    payload: SubmitToBdrcRequest | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_outliner_access),
 ):
-    """Push outline to BDRC with status in_review and set document status to completed."""
+    """Push outline to BDRC with status in_review and set document status to completed.
+
+    An optional body carries the annotator's ``is_complete`` decision; omitting it keeps
+    the volume complete, which is also BDRC's default.
+    """
     doc = fetch_document_by_id(db, document_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     assert_assigned_document_annotator(doc.user_id, current_user)
-    return await submit_document_to_bdrc_in_review_ctrl(db, document_id)
+    is_complete = payload.is_complete if payload is not None else True
+    return await submit_document_to_bdrc_in_review_ctrl(db, document_id, is_complete)
 
 
 @router.post("/documents/{document_id}/approve")

@@ -1,4 +1,14 @@
+import { useState } from 'react';
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
@@ -15,10 +25,13 @@ function SubmitToReview({ disabled, disabledReason }: SubmitToReviewProps) {
     const { t } = useTranslation();
     const { documentId } = useParams<{ documentId: string }>();
     const navigate = useNavigate();
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [isIncomplete, setIsIncomplete] = useState(false);
 
     const updateStatusMutation = useMutation({
-        mutationFn: () => submitDocumentToBdrcInReview(documentId!),
+        mutationFn: () => submitDocumentToBdrcInReview(documentId!, !isIncomplete),
         onSuccess: () => {
+            setConfirmOpen(false);
             toast.success(t('outliner.submitReview.success'));
             navigate('/outliner')
         },
@@ -35,23 +48,79 @@ function SubmitToReview({ disabled, disabledReason }: SubmitToReviewProps) {
         updateStatusMutation.mutate();
     }
 
+    function openConfirm() {
+        setIsIncomplete(false);
+        setConfirmOpen(true);
+    }
+
     const isLoading = updateStatusMutation.isPending;
 
     return (
-      <Button
-        type="button"
-        disabled={disabled || isLoading}
-        title={disabled ? disabledReason : t('outliner.submitReview.title')}
-        className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        onClick={handleStatusUpdate}
-      >
-        {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Send className="w-4 h-4" />
-        )}
-        <span className="hidden sm:inline">{t('outliner.submitReview.submit')}</span>
-      </Button>
+      <>
+        <Button
+          type="button"
+          disabled={disabled || isLoading}
+          title={disabled ? disabledReason : t('outliner.submitReview.title')}
+          className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={openConfirm}
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+          <span className="hidden sm:inline">{t('outliner.submitReview.submit')}</span>
+        </Button>
+
+        <Dialog
+          open={confirmOpen}
+          onOpenChange={(open) => !isLoading && setConfirmOpen(open)}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>{t('outliner.submitReview.confirmTitle')}</DialogTitle>
+              <DialogDescription>
+                {t('outliner.submitReview.confirmDescription')}
+              </DialogDescription>
+            </DialogHeader>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={isIncomplete}
+                onCheckedChange={(checked) => setIsIncomplete(checked === true)}
+                disabled={isLoading}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="font-medium block">
+                  {t('outliner.submitReview.incompleteLabel')}
+                </span>
+                <span className="text-muted-foreground">
+                  {t('outliner.submitReview.incompleteHint')}
+                </span>
+              </span>
+            </label>
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmOpen(false)}
+                disabled={isLoading}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                onClick={handleStatusUpdate}
+                disabled={isLoading}
+                className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700"
+              >
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {t('outliner.submitReview.submit')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
 }
 

@@ -176,6 +176,15 @@ class SegmentReviewRequest(BaseModel):
     comment: str | None = None
 
 
+class SubmitToBdrcRequest(BaseModel):
+    """Annotator's submit-to-review decision, including whether the scan is complete."""
+
+    is_complete: bool = Field(
+        True,
+        description="False when the scanned volume is missing pages at the beginning and/or end",
+    )
+
+
 class SegmentReviewResponse(BaseModel):
     id: str
     document_id: str

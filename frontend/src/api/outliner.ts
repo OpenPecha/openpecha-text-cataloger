@@ -648,13 +648,22 @@ export const approveOutlinerDocument = async (
   return handleApiResponse(response);
 };
 
-/** Push outline to BDRC OTAPI with status in_review and set document status to completed (single round-trip). */
+/**
+ * Push outline to BDRC OTAPI with status in_review and set document status to completed
+ * (single round-trip). `isComplete` is false when the scanned volume is missing pages at
+ * the beginning and/or the end; it is pushed to BDRC as the volume-level `complete` flag.
+ */
 export const submitDocumentToBdrcInReview = async (
-  documentId: string
+  documentId: string,
+  isComplete: boolean = true
 ): Promise<Record<string, unknown>> => {
   const response = await outlinerFetch(
     `${OUTLINER_BASE_URL}/documents/${documentId}/submit-bdrc-in-review`,
-    { method: 'POST' }
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_complete: isComplete }),
+    }
   );
   return handleApiResponse(response);
 };

@@ -15,6 +15,7 @@ from bdrc.volume import (
     aclose_http_client,
     get_volume,
     update_volume,
+    update_volume_complete,
     update_volume_status,
 )
 
@@ -127,7 +128,7 @@ async def _push_document_segments_to_bdrc(
             wa_id=wa_id,
             part_type="text" if wa_id != '' else "editorial"
         ))
-    return await update_volume(
+    result = await update_volume(
         volume_id,
         VolumeInput(
             rep_id=rep_id,
@@ -138,6 +139,20 @@ async def _push_document_segments_to_bdrc(
             segments=segment_inputs,
         ),
     )
+
+    # `complete` has no place in the volume POST body, so it needs its own PATCH, sent
+    # after the POST so the status above is already committed. BDRC defaults it to true.
+    if document.is_complete is False:
+        try:
+            await update_volume_complete(volume_id, False)
+        except (TimeoutError, ConnectionError, RuntimeError):
+            # The segments pushed fine; losing the flag should not discard that.
+            logger.exception(
+                "BDRC complete flag PATCH failed volume_id=%s (segments were pushed)",
+                volume_id,
+            )
+
+    return result
 
 
 async def _push_with_client_cleanup(
@@ -221,10 +236,18 @@ def enqueue_push_document_segments_to_bdrc(
     ).start()
 
 
-async def submit_document_to_bdrc_in_review(db: Session, document_id: str) -> Dict[str, Any]:
-    """Queue BDRC in_review push in background, then set document status to completed."""
+async def submit_document_to_bdrc_in_review(
+    db: Session, document_id: str, is_complete: bool = True
+) -> Dict[str, Any]:
+    """Queue BDRC in_review push in background, then set document status to completed.
+
+    ``is_complete`` is False when the annotator marked the scanned volume as missing
+    pages; it is persisted before queueing so the background push reads it back.
+    """
     document = get_document(db, document_id, include_segments=True)
     _validate_document_has_bdrc_volume(document)
+    # Must land before enqueue: the worker re-reads the document in its own session.
+    outliner_repo.set_document_is_complete(db, document_id, is_complete)
     enqueue_push_document_segments_to_bdrc(document_id, "in_review")
     await update_document_status(db, document_id, "completed")
     save_annotator_ai_final_segments(db, document_id)

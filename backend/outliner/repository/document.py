@@ -263,6 +263,20 @@ def set_document_synced_to_bdrc(db: Session, document_id: str, synced: bool) -> 
     db.commit()
 
 
+def set_document_is_complete(db: Session, document_id: str, is_complete: bool) -> None:
+    """Record whether the scanned volume is complete; pushed to BDRC on submit."""
+    document = (
+        db.query(OutlinerDocument)
+        .filter(OutlinerDocument.id == document_id)
+        .first()
+    )
+    if not document:
+        return
+    document.is_complete = is_complete
+    document.updated_at = datetime.utcnow()
+    db.commit()
+
+
 def _random_completed_unassigned_document(
     db: Session,
     *,

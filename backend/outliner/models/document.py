@@ -41,4 +41,6 @@ class OutlinerDocument(Base):
         order_by="OutlinerSegment.segment_index",
     )
     synced_to_bdrc: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    # False when the scan is missing pages at the beginning and/or the end.
+    is_complete: Mapped[bool] = mapped_column(Boolean, default=True, nullable=True)
     reviewer_id: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True, index=True)

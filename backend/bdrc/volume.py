@@ -185,6 +185,38 @@ async def update_volume(
         raise ConnectionError(f"Error connecting to BDRC API: {str(e)}") from e
 
 
+async def update_volume_complete(
+    volume_id: str,
+    complete: bool
+) -> Dict[str, Any]:
+    """
+    Update only the `complete` flag of a specific volume in BDRC API by volume ID.
+
+    Marks whether the scanned volume is complete; `false` means pages are missing
+    at the beginning and/or the end. BDRC defaults this to `true`, so only `false`
+    (and undoing it) needs to be sent.
+    """
+    url = f"{BDRC_BACKEND_URL}/volumes/{volume_id}/complete"
+    headers = {
+        "accept": APPLICATION_JSON
+    }
+    params = {
+        "complete": complete
+    }
+    try:
+        client = await get_http_client()
+        response = await client.patch(url, params=params, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except httpx.HTTPStatusError as e:
+        error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
+        raise RuntimeError(error_msg) from e
+    except httpx.TimeoutException as e:
+        raise TimeoutError(TIMEOUT_ERROR_MSG) from e
+    except httpx.RequestError as e:
+        raise ConnectionError(f"Error connecting to BDRC API: {str(e)}") from e
+
+
 async def update_volume_status(
     volume_id: str,
     status: STATUS

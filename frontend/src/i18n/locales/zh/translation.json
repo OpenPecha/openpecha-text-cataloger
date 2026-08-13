@@ -36,7 +36,7 @@
     "instances": "版本"
   },
   "footer": {
-     "copyright": "© 2025 OpenPecha",
+    "copyright": "© 2025 OpenPecha",
     "allRightsReserved": "版权所有"
   },
   "home": {
@@ -591,7 +591,11 @@
       "success": "已提交审核并同步至 BDRC",
       "noDocumentId": "未找到文档 ID",
       "title": "提交审核",
-      "submit": "提交"
+      "submit": "提交",
+      "confirmTitle": "提交审核",
+      "confirmDescription": "此卷将被提交审核。",
+      "incompleteLabel": "此卷不完整",
+      "incompleteHint": "扫描件的开头和/或结尾缺页。"
     },
     "upload": {
       "uploading": "正在上传文档..."
@@ -722,4 +726,3 @@
     }
   }
 }
-
