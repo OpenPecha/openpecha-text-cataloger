@@ -10,6 +10,8 @@ export { useOutlinerUsers } from './useOutlinerUsers';
 export type { OutlinerUser } from './useOutlinerUsers';
 export { useDashboardStats } from './useDashboardStats';
 export type { DashboardStatsFilters } from './useDashboardStats';
+export { useAnnotatorWeeklyQuality } from './useAnnotatorWeeklyQuality';
+export type { AnnotatorWeeklyQualityFilters } from './useAnnotatorWeeklyQuality';
 export { useReviewerStats } from './useReviewerStats';
 export { useActiveBatch } from './useActiveBatch';
 export { useStatistics } from './useStatistics';

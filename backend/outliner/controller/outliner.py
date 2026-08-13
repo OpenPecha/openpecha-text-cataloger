@@ -5,6 +5,7 @@ Use submodules directly, e.g. ``outliner.controller.document``, when adding new 
 """
 from outliner.controller.analytics import (
     get_annotator_performance_breakdown,
+    get_annotator_weekly_quality,
     get_dashboard_stats,
 )
 from outliner.controller.bdrc import (

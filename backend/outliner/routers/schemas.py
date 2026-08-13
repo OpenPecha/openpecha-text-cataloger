@@ -728,6 +728,26 @@ class ReviewerStatsResponse(BaseModel):
     reviewer_breakdown: List[ReviewerStatsBreakdownRow] = Field(default_factory=list)
 
 
+class AnnotatorWeeklyQualityRow(BaseModel):
+    """One annotator's volume and quality rates inside a single ISO week."""
+
+    user_id: Optional[str] = None
+    name: str
+    week: Optional[str] = None
+    approved: int = 0
+    edited: int = 0
+    rejected: int = 0
+    clean: int = 0
+    edits_pct: float = 0.0
+    rejection_pct: float = 0.0
+    clean_pct: float = 0.0
+
+
+class AnnotatorWeeklyQualityResponse(BaseModel):
+    bucket_by: str
+    rows: List[AnnotatorWeeklyQualityRow] = Field(default_factory=list)
+
+
 class AnnotatorApprovedRow(BaseModel):
     user_id: Optional[str] = None
     name: str

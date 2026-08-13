@@ -762,3 +762,171 @@ def get_dashboard_stats(
     }
     raw_stats["presentation"] = build_dashboard_presentation(db, raw_stats)
     return raw_stats
+
+
+_WEEKLY_BUCKET_FIELDS = frozenset({"annotated", "reviewed"})
+
+
+def _weekly_bucket_time(bucket_by: str):
+    """
+    Week anchor for the annotator timeline.
+
+    ``reviewed`` buckets by when the reviewer decided (``reviewed_at``): a week's numbers
+    settle once it passes. ``annotated`` buckets by when the segment was created, which
+    attributes work to when the annotator did it, but recent weeks keep moving as their
+    review lands later.
+    """
+    if bucket_by == "annotated":
+        return OutlinerSegment.created_at
+    return OutlinerSegment.reviewed_at
+
+
+def get_annotator_weekly_quality(
+    db: Session,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    user_id: Optional[str] = None,
+    bucket_by: str = "reviewed",
+) -> List[Dict[str, Any]]:
+    """
+    Per-annotator, per-week volume and quality rates for the scatter timeline.
+
+    One denominator for both rates: ``approved`` is the segments reviewed that week (with an
+    annotator title/author). ``edited`` and ``rejected`` are subsets of those same segments -
+    the ones the reviewer corrected, and the ones rejected at some point before approval - so
+    every rate is a share of reviewed work and cannot exceed 100%. Counted per segment, never
+    per rejection event, since one segment can be rejected repeatedly.
+
+    ``clean`` completes the three-way split (clean + edited + rejected == approved), matching
+    the stacked-bar view where the buckets sum to 100%.
+
+    Read-only and independent of :func:`get_dashboard_stats`.
+    """
+    if bucket_by not in _WEEKLY_BUCKET_FIELDS:
+        bucket_by = "reviewed"
+
+    doc_filters = [
+        (OutlinerDocument.status != "deleted") | (OutlinerDocument.status.is_(None))
+    ]
+    if user_id:
+        doc_filters.append(OutlinerDocument.user_id == user_id)
+    doc_scope = and_(*doc_filters)
+
+    has_title_or_author = or_(
+        and_(OutlinerSegment.title.isnot(None), OutlinerSegment.title != ""),
+        and_(OutlinerSegment.author.isnot(None), OutlinerSegment.author != ""),
+    )
+
+    seg_time = _weekly_bucket_time(bucket_by)
+    seg_week = func.date_trunc("week", seg_time)
+
+    approved_clauses: List[Any] = [
+        doc_scope,
+        OutlinerSegment.status == "approved",
+        has_title_or_author,
+        seg_time.isnot(None),
+    ]
+    if start_date is not None:
+        approved_clauses.append(seg_time >= start_date)
+    if end_date is not None:
+        approved_clauses.append(seg_time <= end_date)
+
+    edited_when = or_(
+        OutlinerSegment.reviewer_title.isnot(None),
+        OutlinerSegment.reviewer_author.isnot(None),
+    )
+    approved_rows = (
+        db.query(
+            OutlinerDocument.user_id,
+            seg_week.label("week"),
+            func.count(OutlinerSegment.id).label("approved"),
+            func.sum(case((edited_when, 1), else_=0)).label("edited"),
+        )
+        .join(OutlinerSegment, OutlinerSegment.document_id == OutlinerDocument.id)
+        .filter(and_(*approved_clauses))
+        .group_by(OutlinerDocument.user_id, seg_week)
+        .all()
+    )
+
+    # Counted on the same segments as the denominator: of the segments reviewed this week, how
+    # many were rejected at some point. Bucketing rejections by their own filing date instead
+    # divides two unrelated sets of segments and can exceed 100%.
+    was_rejected = (
+        db.query(SegmentRejection.segment_id)
+        .filter(SegmentRejection.segment_id == OutlinerSegment.id)
+        .exists()
+    )
+    rejected_rows = (
+        db.query(
+            OutlinerDocument.user_id,
+            seg_week.label("week"),
+            func.count(OutlinerSegment.id).label("rejected"),
+        )
+        .join(OutlinerSegment, OutlinerSegment.document_id == OutlinerDocument.id)
+        .filter(and_(*approved_clauses, was_rejected))
+        .group_by(OutlinerDocument.user_id, seg_week)
+        .all()
+    )
+
+    buckets: Dict[Any, Dict[str, Any]] = {}
+
+    def _slot(uid: Any, week: Any) -> Dict[str, Any]:
+        key = (str(uid) if uid is not None else None, week)
+        row = buckets.get(key)
+        if row is None:
+            row = {
+                "user_id": key[0],
+                "week": week,
+                "approved": 0,
+                "edited": 0,
+                "rejected": 0,
+            }
+            buckets[key] = row
+        return row
+
+    for uid, week, approved, edited in approved_rows:
+        slot = _slot(uid, week)
+        slot["approved"] = int(approved or 0)
+        slot["edited"] = int(edited or 0)
+    for uid, week, rejected in rejected_rows:
+        _slot(uid, week)["rejected"] = int(rejected or 0)
+
+    names_by_id = _load_weekly_display_names(db, [r["user_id"] for r in buckets.values()])
+
+    rows: List[Dict[str, Any]] = []
+    for row in buckets.values():
+        approved = row["approved"]
+        rejected = row["rejected"]
+        # A rejected segment may also carry a reviewer correction. Count it once, under the
+        # more serious outcome, so clean + edited + rejected == approved.
+        edited_only = max(row["edited"] - rejected, 0)
+        clean = max(approved - rejected - edited_only, 0)
+        rows.append(
+            {
+                "user_id": row["user_id"],
+                "name": names_by_id.get(row["user_id"] or "", "Unknown"),
+                "week": row["week"].date().isoformat() if row["week"] else None,
+                "approved": approved,
+                "edited": edited_only,
+                "rejected": rejected,
+                "clean": clean,
+                "edits_pct": round(edited_only * 1000 / approved) / 10 if approved else 0.0,
+                "rejection_pct": round(rejected * 1000 / approved) / 10 if approved else 0.0,
+                "clean_pct": round(clean * 1000 / approved) / 10 if approved else 0.0,
+            }
+        )
+    rows.sort(key=lambda r: (r["week"] or "", -r["approved"]))
+    return rows
+
+
+def _load_weekly_display_names(db: Session, user_ids: List[Any]) -> Dict[str, str]:
+    ids = {str(u) for u in user_ids if u}
+    if not ids:
+        return {}
+    out: Dict[str, str] = {}
+    for uid, name, email in (
+        db.query(User.id, User.name, User.email).filter(User.id.in_(ids)).all()
+    ):
+        label = (name or "").strip() or (email or "").strip() or str(uid)
+        out[str(uid)] = label
+    return out

@@ -27,6 +27,23 @@ def get_annotator_performance_breakdown(
     )
 
 
+def get_annotator_weekly_quality(
+    db: Session,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    user_id: Optional[str] = None,
+    bucket_by: str = "reviewed",
+) -> List[Dict[str, Any]]:
+    """Per-annotator weekly volume and quality rates for the scatter timeline."""
+    return outliner_repo.get_annotator_weekly_quality(
+        db,
+        start_date=start_date,
+        end_date=end_date,
+        user_id=user_id,
+        bucket_by=bucket_by,
+    )
+
+
 def get_dashboard_stats(
     db: Session,
     user_id: Optional[str] = None,

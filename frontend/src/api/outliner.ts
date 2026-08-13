@@ -1015,6 +1015,46 @@ export const getDashboardStats = async (
   return handleApiResponse(response);
 };
 
+export type AnnotatorWeeklyBucketBy = 'reviewed' | 'annotated';
+
+export interface AnnotatorWeeklyQualityRow {
+  user_id: string | null;
+  name: string;
+  /** ISO date of the Monday starting the week. */
+  week: string | null;
+  /** Segments reviewed this week — the denominator for every rate below. */
+  approved: number;
+  edited: number;
+  rejected: number;
+  /** Reviewed with no correction and no rejection; clean + edited + rejected === approved. */
+  clean: number;
+  edits_pct: number;
+  rejection_pct: number;
+  clean_pct: number;
+}
+
+export interface AnnotatorWeeklyQualityResponse {
+  bucket_by: AnnotatorWeeklyBucketBy;
+  rows: AnnotatorWeeklyQualityRow[];
+}
+
+export const getAnnotatorWeeklyQuality = async (
+  bucket_by: AnnotatorWeeklyBucketBy = 'reviewed',
+  user_id?: string,
+  start_date?: string,
+  end_date?: string,
+): Promise<AnnotatorWeeklyQualityResponse> => {
+  const params = new URLSearchParams();
+  params.append('bucket_by', bucket_by);
+  if (user_id) params.append('user_id', user_id);
+  if (start_date) params.append('start_date', start_date);
+  if (end_date) params.append('end_date', end_date);
+  const response = await outlinerFetch(
+    `${OUTLINER_BASE_URL}/dashboard/annotator-weekly-quality?${params.toString()}`,
+  );
+  return handleApiResponse(response);
+};
+
 // ==================== Statistics ====================
 
 export interface AnnotatorApprovedRow {

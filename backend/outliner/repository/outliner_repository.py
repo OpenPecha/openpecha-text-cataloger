@@ -6,6 +6,7 @@ Implementation is split across ``document``, ``segment``, ``segment_rejection``,
 """
 from outliner.repository.analytics import (
     get_annotator_performance_breakdown,
+    get_annotator_weekly_quality,
     get_dashboard_stats,
 )
 from outliner.repository.document import (

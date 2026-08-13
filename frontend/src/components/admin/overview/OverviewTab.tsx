@@ -7,6 +7,7 @@ import {
   BarChart3,
   Table2,
   AlertTriangle,
+  ScatterChart,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import {
@@ -17,17 +18,19 @@ import {
   LineElement,
   PointElement,
   ArcElement,
+  ScatterController,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js'
 import type { ChartOptions, TooltipItem } from 'chart.js'
-import { Bar, Doughnut, Line } from 'react-chartjs-2'
+import { Bar, Doughnut, Line, Scatter } from 'react-chartjs-2'
 import type {
+  AnnotatorWeeklyBucketBy,
   DashboardChartSeries,
   DashboardStats,
 } from '@/api/outliner'
-import { useActiveBatch } from '@/hooks'
+import { useActiveBatch, useAnnotatorWeeklyQuality } from '@/hooks'
 
 ChartJS.register(
   CategoryScale,
@@ -36,6 +39,7 @@ ChartJS.register(
   LineElement,
   PointElement,
   ArcElement,
+  ScatterController,
   Title,
   Tooltip,
   Legend,
@@ -218,6 +222,98 @@ function annotatorPerUserLineOptions(
 }
 
 /** Grouped vertical bars: annotators on X, rates (left Y) and counts (right Y); scroll horizontally when many users. */
+/**
+ * Quadrant scatter options. The "average" crosshair is a heavier grid line at the mean of
+ * each axis, which avoids pulling in an annotation plugin.
+ */
+function annotatorScatterOptions(
+  avgX: number,
+  avgY: number,
+  yLabel: string,
+  countLabel: string,
+): ChartOptions<'scatter'> {
+  const axisLine = (avg: number) => (ctx: { tick: { value: number } }) =>
+    Math.abs(ctx.tick.value - avg) < 1e-9 ? PRIMARY : GRID
+  const axisWidth = (avg: number) => (ctx: { tick: { value: number } }) =>
+    Math.abs(ctx.tick.value - avg) < 1e-9 ? 2 : 1
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (item: TooltipItem<'scatter'>) => {
+            const p = item.raw as {
+              name: string
+              x: number
+              y: number
+              count: number
+            }
+            return [
+              p.name,
+              `${p.y.toFixed(1)}% ${yLabel}`,
+              `${p.count.toLocaleString()} ${countLabel} / ${p.x.toLocaleString()} reviewed`,
+            ]
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Reviewed segments with title/author (volume)',
+          color: MUTED,
+          font: { size: 11 },
+        },
+        afterBuildTicks: (axis) => {
+          if (!axis.ticks.some((t) => Math.abs(t.value - avgX) < 1e-9)) {
+            axis.ticks.push({ value: avgX, label: '' })
+            axis.ticks.sort((a, b) => a.value - b.value)
+          }
+        },
+        ticks: {
+          color: MUTED,
+          font: { size: 10 },
+          maxRotation: 0,
+          // Average tick carries the crosshair only; a label there would collide
+          // with the neighbouring round-number tick.
+          callback: (value) =>
+            Math.abs(Number(value) - avgX) < 1e-9 ? '' : Number(value).toLocaleString(),
+        },
+        grid: { color: axisLine(avgX), lineWidth: axisWidth(avgX) },
+      },
+      y: {
+        beginAtZero: true,
+        // Fixed rather than data-derived: an auto-scaled axis rescales as the slider moves,
+        // making a dot look like it rose when only the scale shrank.
+        max: 100,
+        title: {
+          display: true,
+          text: `${yLabel} (% of reviewed)`,
+          color: MUTED,
+          font: { size: 11 },
+        },
+        afterBuildTicks: (axis) => {
+          if (!axis.ticks.some((t) => Math.abs(t.value - avgY) < 1e-9)) {
+            axis.ticks.push({ value: avgY, label: '' })
+            axis.ticks.sort((a, b) => a.value - b.value)
+          }
+        },
+        ticks: {
+          color: MUTED,
+          font: { size: 10 },
+          callback: (value) =>
+            Math.abs(Number(value) - avgY) < 1e-9 ? '' : `${Number(value).toFixed(0)}%`,
+        },
+        grid: { color: axisLine(avgY), lineWidth: axisWidth(avgY) },
+      },
+    },
+  }
+}
+
 const ANNOTATOR_QUALITY_SIGNALS_VBAR_OPTIONS: ChartOptions<'bar'> = {
   responsive: true,
   maintainAspectRatio: false,
@@ -553,8 +649,13 @@ function OverviewTab({
   isLoading,
   dashboardDateRange,
 }: OverviewTabProps) {
-  const [annotatorQualityView, setAnnotatorQualityView] = useState<'chart' | 'table'>('chart')
+  const [annotatorQualityView, setAnnotatorQualityView] = useState<
+    'chart' | 'scatter' | 'table'
+  >('chart')
   const [reviewerActivityView, setReviewerActivityView] = useState<'chart' | 'table'>('chart')
+  const [weeklyBucketBy, setWeeklyBucketBy] = useState<AnnotatorWeeklyBucketBy>('reviewed')
+  /** null = "All weeks" (the date-range totals); otherwise an index into `weeklyWeeks`. */
+  const [selectedWeekIdx, setSelectedWeekIdx] = useState<number | null>(null)
   const { data: activeBatchData, setActiveBatch, isUpdating: activeBatchUpdating } = useActiveBatch()
   const activeBatchId = activeBatchData?.batch_id ?? null
 
@@ -649,6 +750,47 @@ const documentStatusChart = useMemo(
 
   const annotatorQuality = presentation?.annotator_quality ?? null
 
+  // Only fetched while the scatter tab is open, so the overview keeps its current cost.
+  const { weekly, isLoading: weeklyLoading } = useAnnotatorWeeklyQuality({
+    startDate: dashboardDateRange?.start || undefined,
+    endDate: dashboardDateRange?.end || undefined,
+    bucketBy: weeklyBucketBy,
+    enabled: annotatorQualityView === 'scatter',
+  })
+
+  const weeklyWeeks = useMemo(() => {
+    const set = new Set<string>()
+    for (const r of weekly?.rows ?? []) if (r.week) set.add(r.week)
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [weekly?.rows])
+
+  const activeWeek =
+    selectedWeekIdx === null ? null : (weeklyWeeks[selectedWeekIdx] ?? null)
+
+  const weekRangeLabel = useMemo(() => {
+    if (!activeWeek) return null
+    const start = new Date(`${activeWeek}T00:00:00`)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 6)
+    const fmt = (d: Date) =>
+      d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+    return `${fmt(start)} – ${fmt(end)}`
+  }, [activeWeek])
+
+  /**
+   * Under annotation time a recent week is still filling up — work annotated then may not be
+   * reviewed yet — so its rates will still move. Flagged so the edge of the trend is not read
+   * as a real dip.
+   */
+  const activeWeekIsPartial = useMemo(() => {
+    if (!activeWeek || weeklyBucketBy !== 'annotated') return false
+    const weekEnd = new Date(`${activeWeek}T00:00:00`)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    const twoWeeksAgo = new Date()
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+    return weekEnd >= twoWeeksAgo
+  }, [activeWeek, weeklyBucketBy])
+
   const annotatorQualityChartData = useMemo(() => {
     const chart = annotatorQuality?.chart
     if (!chart) return null
@@ -688,6 +830,47 @@ const documentStatusChart = useMemo(
       ],
     }
   }, [annotatorQuality?.chart])
+
+  /**
+   * Quadrant scatter: one dot per annotator, x = approved segments (volume), y = rate (%).
+   * Sourced from the weekly endpoint even for "All weeks", so moving the slider changes the
+   * time window and never the metric — the Chart/Table figures count rejection events instead
+   * and are not comparable.
+   */
+  const annotatorScatterData = useMemo(() => {
+    const source = weekly?.rows ?? []
+    const scoped = activeWeek ? source.filter((r) => r.week === activeWeek) : source
+    const totals = new Map<
+      string,
+      { name: string; approved: number; edited: number; rejected: number }
+    >()
+    for (const r of scoped) {
+      const key = r.user_id ?? r.name
+      const acc = totals.get(key) ?? { name: r.name, approved: 0, edited: 0, rejected: 0 }
+      acc.approved += r.approved
+      acc.edited += r.edited
+      acc.rejected += r.rejected
+      totals.set(key, acc)
+    }
+    const points = [...totals.values()].map((t) => ({
+      name: t.name,
+      x: t.approved,
+      rejection: t.approved ? (t.rejected / t.approved) * 100 : 0,
+      edits: t.approved ? (t.edited / t.approved) * 100 : 0,
+      rejectionEvents: t.rejected,
+      correctionEdits: t.edited,
+    }))
+    if (!points.length) return null
+    const mean = (vals: number[]) =>
+      vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
+    return {
+      points,
+      avgX: mean(points.map((p) => p.x)),
+      avgRejection: mean(points.map((p) => p.rejection)),
+      avgEdits: mean(points.map((p) => p.edits)),
+      maxX: Math.max(...points.map((p) => p.x), 1),
+    }
+  }, [weekly?.rows, activeWeek])
 
   const annotatorQualityVBarLayout = useMemo(() => {
     if (!annotatorQualityChartData) return null
@@ -1271,9 +1454,15 @@ return (
             </p>
             {annotatorQuality && annotatorQuality.table_rows.length > 1 ? (
               <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                All annotators in one view; scroll sideways to compare. Left axis: rejection and
-                correction rates as a percent of reviewed segments with title/author; right axis:
-                segment counts.
+                {(() => {
+                  if (annotatorQualityView === 'scatter') {
+                    return 'Volume against quality, one dot per annotator. Dots far from where the two average lines cross are the outliers; use the week slider to see how they move over time.'
+                  }
+                  if (annotatorQualityView === 'table') {
+                    return 'Every annotator with their exact counts and rates. Rejection and correction rates are a percent of reviewed segments with title/author.'
+                  }
+                  return 'All annotators in one view; scroll sideways to compare. Left axis: rejection and correction rates as a percent of reviewed segments with title/author; right axis: segment counts.'
+                })()}
               </p>
             ) : null}
           </div>
@@ -1297,6 +1486,20 @@ return (
                 >
                   <BarChart3 className="h-3.5 w-3.5 opacity-90" aria-hidden />
                   Chart
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={annotatorQualityView === 'scatter'}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    annotatorQualityView === 'scatter'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-stone-100/90 hover:text-foreground'
+                  }`}
+                  onClick={() => setAnnotatorQualityView('scatter')}
+                >
+                  <ScatterChart className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                  Scatter
                 </button>
                 <button
                   type="button"
@@ -1331,6 +1534,205 @@ return (
                   options={ANNOTATOR_QUALITY_SIGNALS_VBAR_OPTIONS}
                 />
               </div>
+            </div>
+          ) : annotatorQualityView === 'scatter' ? (
+            <div className="mt-5 grid gap-5 xl:grid-cols-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-stone-200/80 bg-stone-50/70 px-4 py-3 xl:col-span-2">
+                <div className="flex min-w-[20rem] flex-1 flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label="Previous week"
+                      disabled={!weeklyWeeks.length || selectedWeekIdx === null}
+                      onClick={() =>
+                        setSelectedWeekIdx((i) =>
+                          i === null || i <= 0 ? null : i - 1,
+                        )
+                      }
+                      className="shrink-0 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-stone-100 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ‹
+                    </button>
+                    <input
+                      id="annotator-week-slider"
+                      type="range"
+                      min={-1}
+                      max={Math.max(weeklyWeeks.length - 1, -1)}
+                      step={1}
+                      value={selectedWeekIdx ?? -1}
+                      disabled={!weeklyWeeks.length}
+                      aria-label="Select week"
+                      aria-valuetext={activeWeek ? `Week of ${activeWeek}` : 'All weeks'}
+                      onChange={(e) => {
+                        const v = Number(e.target.value)
+                        setSelectedWeekIdx(v < 0 ? null : v)
+                      }}
+                      className="h-1.5 min-w-0 flex-1 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Next week"
+                      disabled={
+                        !weeklyWeeks.length || selectedWeekIdx === weeklyWeeks.length - 1
+                      }
+                      onClick={() =>
+                        setSelectedWeekIdx((i) =>
+                          i === null ? 0 : Math.min(i + 1, weeklyWeeks.length - 1),
+                        )
+                      }
+                      className="shrink-0 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-stone-100 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ›
+                    </button>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 pl-8 pr-8">
+                    <span className="flex items-baseline gap-2 text-sm font-semibold text-foreground">
+                      {(() => {
+                        if (weeklyLoading) return 'Loading…'
+                        if (!weeklyWeeks.length) return 'No weekly data'
+                        if (!activeWeek) return 'All weeks'
+                        return weekRangeLabel
+                      })()}
+                      {activeWeekIsPartial ? (
+                        <span
+                          className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
+                          title="Some work annotated in this week has not been reviewed yet, so these rates will still change."
+                        >
+                          Partial
+                        </span>
+                      ) : null}
+                    </span>
+                    {weeklyWeeks.length && activeWeek ? (
+                      <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                        week {(selectedWeekIdx ?? 0) + 1} of {weeklyWeeks.length}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        drag to step week by week
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div
+                  className="flex shrink-0 rounded-lg border border-stone-200/90 bg-white/90 p-0.5"
+                  role="group"
+                  aria-label="Bucket weeks by"
+                >
+                  {(
+                    [
+                      { key: 'reviewed', label: 'Review time' },
+                      { key: 'annotated', label: 'Annotation time' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      aria-pressed={weeklyBucketBy === opt.key}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                        weeklyBucketBy === opt.key
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-stone-100/90 hover:text-foreground'
+                      }`}
+                      onClick={() => {
+                        setWeeklyBucketBy(opt.key)
+                        setSelectedWeekIdx(null)
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {!annotatorScatterData ? (
+                <p className="py-8 text-center text-sm text-muted-foreground lg:col-span-2">
+                  {weeklyLoading ? 'Loading…' : 'No annotator data for this selection.'}
+                </p>
+              ) : null}
+              {annotatorScatterData
+                ? (
+                [
+                  {
+                    key: 'edits',
+                    heading: 'Reviewer corrections',
+                    yLabel: 'Corrections',
+                    countLabel: 'corrections',
+                    avgY: annotatorScatterData.avgEdits,
+                    color: INK,
+                    value: (p: (typeof annotatorScatterData.points)[number]) => p.edits,
+                    count: (p: (typeof annotatorScatterData.points)[number]) =>
+                      p.correctionEdits,
+                  },
+                  {
+                    key: 'rejections',
+                    heading: 'Rejections',
+                    yLabel: 'Rejections',
+                    countLabel: 'rejections',
+                    avgY: annotatorScatterData.avgRejection,
+                    color: PRIMARY,
+                    value: (p: (typeof annotatorScatterData.points)[number]) => p.rejection,
+                    count: (p: (typeof annotatorScatterData.points)[number]) =>
+                      p.rejectionEvents,
+                  },
+                ] as const
+              ).map((cfg) => (
+                <div
+                  key={cfg.key}
+                  className="rounded-xl border border-stone-200/80 bg-white/70 p-4"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">{cfg.heading}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      avg {cfg.avgY.toFixed(1)}% · avg volume{' '}
+                      {Math.round(annotatorScatterData.avgX).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-3 h-[26rem] w-full">
+                    <Scatter
+                      data={{
+                        datasets: [
+                          {
+                            label: cfg.heading,
+                            data: annotatorScatterData.points.map((p) => ({
+                              x: p.x,
+                              y: cfg.value(p),
+                              name: p.name,
+                              count: cfg.count(p),
+                            })),
+                            // Translucent fill so overlapping annotators stay countable.
+                            backgroundColor: `${cfg.color}59`,
+                            borderColor: cfg.color,
+                            borderWidth: 1.5,
+                            pointRadius: 5,
+                            pointHoverRadius: 9,
+                            pointHoverBackgroundColor: cfg.color,
+                            pointHoverBorderColor: '#ffffff',
+                            pointHoverBorderWidth: 2,
+                          },
+                        ],
+                      }}
+                      options={annotatorScatterOptions(
+                        annotatorScatterData.avgX,
+                        cfg.avgY,
+                        cfg.yLabel,
+                        cfg.countLabel,
+                      )}
+                    />
+                  </div>
+                </div>
+              ))
+                : null}
+              <p className="text-xs leading-relaxed text-muted-foreground lg:col-span-2">
+                Each dot is one annotator; hover a dot for their name and counts. Horizontal
+                axis: segments reviewed (volume). Vertical axis: share of those same segments —
+                so both charts use one denominator and stay within 100%. The two darker
+                crosshair lines are the averages across annotators, so dots far from the crossing
+                point are the outliers.{' '}
+                {activeWeek
+                  ? `Showing the week of ${activeWeek}, bucketed by ${
+                      weeklyBucketBy === 'reviewed' ? 'review' : 'annotation'
+                    } time.`
+                  : 'Showing the whole selected date range; drag the week slider to step through time.'}
+              </p>
             </div>
           ) : annotatorQualityView === 'table' ? (
             <div className="mt-5 max-h-[min(720px,70vh)] overflow-y-auto overflow-x-auto rounded-lg border border-stone-200/80 bg-white/60">
