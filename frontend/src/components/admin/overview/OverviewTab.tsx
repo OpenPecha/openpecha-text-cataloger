@@ -66,6 +66,21 @@ const ORANGE = '#c2410c'
 /** Dark blue for reviewed segment counts on the quality chart. */
 const BLUE_DARK = '#1e3a8a'
 
+/**
+ * Colour derived from the annotator id, so one dot keeps its colour across weeks and refetches
+ * and can be followed through the timeline. Golden-angle hue spacing keeps ids visually apart.
+ */
+function annotatorColor(key: string): string {
+  let hash = 0
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0
+  }
+  const hue = (hash * 137.508) % 360
+  const sat = 62 + (hash % 3) * 9
+  const light = 38 + (hash % 4) * 6
+  return `hsl(${hue.toFixed(1)} ${sat}% ${light}%)`
+}
+
 /** Horizontal space per person on the quality & reviewer vertical bar charts (scroll when wider than the card). */
 const ANNOTATOR_QUALITY_VBAR_PX_PER_USER = 56
 const ANNOTATOR_QUALITY_VBAR_MIN_WIDTH = 640
@@ -231,6 +246,7 @@ function annotatorScatterOptions(
   avgY: number,
   yLabel: string,
   countLabel: string,
+  yMax: number,
 ): ChartOptions<'scatter'> {
   const axisLine = (avg: number) => (ctx: { tick: { value: number } }) =>
     Math.abs(ctx.tick.value - avg) < 1e-9 ? PRIMARY : GRID
@@ -288,8 +304,9 @@ function annotatorScatterOptions(
       y: {
         beginAtZero: true,
         // Fixed rather than data-derived: an auto-scaled axis rescales as the slider moves,
-        // making a dot look like it rose when only the scale shrank.
-        max: 100,
+        // making a dot look like it rose when only the scale shrank. Each chart picks a
+        // ceiling that suits its own range so the dots are not squashed against the floor.
+        max: yMax,
         title: {
           display: true,
           text: `${yLabel} (% of reviewed)`,
@@ -302,9 +319,12 @@ function annotatorScatterOptions(
             axis.ticks.sort((a, b) => a.value - b.value)
           }
         },
+        // Every ceiling is divisible by 5, so five intervals always give whole-number ticks.
         ticks: {
           color: MUTED,
           font: { size: 10 },
+          stepSize: yMax / 5,
+          autoSkip: false,
           callback: (value) =>
             Math.abs(Number(value) - avgY) < 1e-9 ? '' : `${Number(value).toFixed(0)}%`,
         },
@@ -656,6 +676,9 @@ function OverviewTab({
   const [weeklyBucketBy, setWeeklyBucketBy] = useState<AnnotatorWeeklyBucketBy>('reviewed')
   /** null = "All weeks" (the date-range totals); otherwise an index into `weeklyWeeks`. */
   const [selectedWeekIdx, setSelectedWeekIdx] = useState<number | null>(null)
+  /** Annotator followed across weeks; survives slider and bucket changes until cleared. */
+  const [focusedAnnotator, setFocusedAnnotator] = useState<string | null>(null)
+  const [legendOpen, setLegendOpen] = useState(false)
   const { data: activeBatchData, setActiveBatch, isUpdating: activeBatchUpdating } = useActiveBatch()
   const activeBatchId = activeBatchData?.batch_id ?? null
 
@@ -842,18 +865,21 @@ const documentStatusChart = useMemo(
     const scoped = activeWeek ? source.filter((r) => r.week === activeWeek) : source
     const totals = new Map<
       string,
-      { name: string; approved: number; edited: number; rejected: number }
+      { key: string; name: string; approved: number; edited: number; rejected: number }
     >()
     for (const r of scoped) {
       const key = r.user_id ?? r.name
-      const acc = totals.get(key) ?? { name: r.name, approved: 0, edited: 0, rejected: 0 }
+      const acc =
+        totals.get(key) ?? { key, name: r.name, approved: 0, edited: 0, rejected: 0 }
       acc.approved += r.approved
       acc.edited += r.edited
       acc.rejected += r.rejected
       totals.set(key, acc)
     }
     const points = [...totals.values()].map((t) => ({
+      key: t.key,
       name: t.name,
+      color: annotatorColor(t.key),
       x: t.approved,
       rejection: t.approved ? (t.rejected / t.approved) * 100 : 0,
       edits: t.approved ? (t.edited / t.approved) * 100 : 0,
@@ -863,14 +889,41 @@ const documentStatusChart = useMemo(
     if (!points.length) return null
     const mean = (vals: number[]) =>
       vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
+    // Axis ceiling per chart: the highest dot rounded up to the next listed step, so a
+    // low-rate week fills the height instead of hugging the floor. Fitting the axis exactly
+    // to the data instead gives fractional tick labels like 1.2% / 2.4%.
+    const ceiling = (vals: number[]) => {
+      const top = Math.max(...vals, 0)
+      return [10, 20, 30, 40, 50, 60, 80, 100].find((c) => top <= c) ?? 100
+    }
     return {
       points,
       avgX: mean(points.map((p) => p.x)),
       avgRejection: mean(points.map((p) => p.rejection)),
       avgEdits: mean(points.map((p) => p.edits)),
+      rejectionMax: ceiling(points.map((p) => p.rejection)),
+      editsMax: ceiling(points.map((p) => p.edits)),
       maxX: Math.max(...points.map((p) => p.x), 1),
     }
   }, [weekly?.rows, activeWeek])
+
+  /** Every annotator in range, not just the active week, so the legend stays stable. */
+  const annotatorRoster = useMemo(() => {
+    const seen = new Map<string, { key: string; name: string; color: string }>()
+    for (const r of weekly?.rows ?? []) {
+      const key = r.user_id ?? r.name
+      if (!seen.has(key)) seen.set(key, { key, name: r.name, color: annotatorColor(key) })
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [weekly?.rows])
+
+  /** Selected annotator has no dot in this week; say so rather than let it look lost. */
+  const focusedMissingName = useMemo(() => {
+    if (!focusedAnnotator) return null
+    const inView = annotatorScatterData?.points.some((p) => p.key === focusedAnnotator)
+    if (inView) return null
+    return annotatorRoster.find((a) => a.key === focusedAnnotator)?.name ?? null
+  }, [focusedAnnotator, annotatorScatterData?.points, annotatorRoster])
 
   const annotatorQualityVBarLayout = useMemo(() => {
     if (!annotatorQualityChartData) return null
@@ -1538,7 +1591,7 @@ return (
           ) : annotatorQualityView === 'scatter' ? (
             <div className="mt-5 grid gap-5 xl:grid-cols-2">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-stone-200/80 bg-stone-50/70 px-4 py-3 xl:col-span-2">
-                <div className="flex min-w-[20rem] flex-1 flex-col gap-1.5">
+                <div className="flex w-full min-w-0 flex-1 flex-col gap-1.5 sm:w-auto">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -1585,7 +1638,7 @@ return (
                       ›
                     </button>
                   </div>
-                  <div className="flex items-baseline justify-between gap-2 pl-8 pr-8">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 sm:px-8">
                     <span className="flex items-baseline gap-2 text-sm font-semibold text-foreground">
                       {(() => {
                         if (weeklyLoading) return 'Loading…'
@@ -1644,7 +1697,7 @@ return (
                 </div>
               </div>
               {!annotatorScatterData ? (
-                <p className="py-8 text-center text-sm text-muted-foreground lg:col-span-2">
+                <p className="py-8 text-center text-sm text-muted-foreground xl:col-span-2">
                   {weeklyLoading ? 'Loading…' : 'No annotator data for this selection.'}
                 </p>
               ) : null}
@@ -1657,6 +1710,7 @@ return (
                     yLabel: 'Corrections',
                     countLabel: 'corrections',
                     avgY: annotatorScatterData.avgEdits,
+                    yMax: annotatorScatterData.editsMax,
                     color: INK,
                     value: (p: (typeof annotatorScatterData.points)[number]) => p.edits,
                     count: (p: (typeof annotatorScatterData.points)[number]) =>
@@ -1668,6 +1722,7 @@ return (
                     yLabel: 'Rejections',
                     countLabel: 'rejections',
                     avgY: annotatorScatterData.avgRejection,
+                    yMax: annotatorScatterData.rejectionMax,
                     color: PRIMARY,
                     value: (p: (typeof annotatorScatterData.points)[number]) => p.rejection,
                     count: (p: (typeof annotatorScatterData.points)[number]) =>
@@ -1677,7 +1732,7 @@ return (
               ).map((cfg) => (
                 <div
                   key={cfg.key}
-                  className="rounded-xl border border-stone-200/80 bg-white/70 p-4"
+                  className="min-w-0 rounded-xl border border-stone-200/80 bg-white/70 p-3 sm:p-4"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="text-sm font-semibold text-foreground">{cfg.heading}</p>
@@ -1686,7 +1741,7 @@ return (
                       {Math.round(annotatorScatterData.avgX).toLocaleString()}
                     </p>
                   </div>
-                  <div className="mt-3 h-[26rem] w-full">
+                  <div className="mt-3 h-[20rem] w-full min-w-0 sm:h-[26rem]">
                     <Scatter
                       data={{
                         datasets: [
@@ -1695,34 +1750,110 @@ return (
                             data: annotatorScatterData.points.map((p) => ({
                               x: p.x,
                               y: cfg.value(p),
+                              key: p.key,
                               name: p.name,
                               count: cfg.count(p),
                             })),
-                            // Translucent fill so overlapping annotators stay countable.
-                            backgroundColor: `${cfg.color}59`,
-                            borderColor: cfg.color,
-                            borderWidth: 1.5,
-                            pointRadius: 5,
-                            pointHoverRadius: 9,
-                            pointHoverBackgroundColor: cfg.color,
-                            pointHoverBorderColor: '#ffffff',
+                            backgroundColor: annotatorScatterData.points.map((p) => p.color),
+                            borderColor: annotatorScatterData.points.map((p) =>
+                              p.key === focusedAnnotator ? INK : '#ffffff',
+                            ),
+                            borderWidth: annotatorScatterData.points.map((p) =>
+                              p.key === focusedAnnotator ? 2.5 : 1.5,
+                            ),
+                            pointRadius: annotatorScatterData.points.map((p) =>
+                              p.key === focusedAnnotator ? 10 : 5,
+                            ),
+                            pointHoverRadius: annotatorScatterData.points.map((p) =>
+                              p.key === focusedAnnotator ? 12 : 9,
+                            ),
+                            pointHoverBorderColor: INK,
                             pointHoverBorderWidth: 2,
                           },
                         ],
                       }}
-                      options={annotatorScatterOptions(
-                        annotatorScatterData.avgX,
-                        cfg.avgY,
-                        cfg.yLabel,
-                        cfg.countLabel,
-                      )}
+                      options={{
+                        ...annotatorScatterOptions(
+                          annotatorScatterData.avgX,
+                          cfg.avgY,
+                          cfg.yLabel,
+                          cfg.countLabel,
+                          cfg.yMax,
+                        ),
+                        onClick: (_evt, elements) => {
+                          const i = elements[0]?.index
+                          if (i == null) return
+                          const key = annotatorScatterData.points[i]?.key
+                          if (key) setFocusedAnnotator((cur) => (cur === key ? null : key))
+                        },
+                      }}
                     />
                   </div>
                 </div>
               ))
                 : null}
-              <p className="text-xs leading-relaxed text-muted-foreground lg:col-span-2">
-                Each dot is one annotator; hover a dot for their name and counts. Horizontal
+              {annotatorRoster.length ? (
+                <div className="rounded-xl border border-stone-200/80 bg-white/60 xl:col-span-2">
+                  <button
+                    type="button"
+                    aria-expanded={legendOpen}
+                    onClick={() => setLegendOpen((v) => !v)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
+                  >
+                    <span className="text-xs font-semibold text-foreground">
+                      {legendOpen ? '▾' : '▸'} Annotators ({annotatorRoster.length})
+                      {focusedAnnotator ? (
+                        <span className="ml-2 font-normal text-muted-foreground">
+                          following{' '}
+                          {annotatorRoster.find((a) => a.key === focusedAnnotator)?.name}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {focusedAnnotator
+                        ? 'click again to stop following'
+                        : 'click a name or a dot to follow one across weeks'}
+                    </span>
+                  </button>
+                  {legendOpen ? (
+                    <div className="flex flex-wrap gap-1.5 border-t border-stone-200/80 px-4 py-3">
+                      {annotatorRoster.map((a) => {
+                        const on = a.key === focusedAnnotator
+                        return (
+                          <button
+                            key={a.key}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() =>
+                              setFocusedAnnotator((cur) => (cur === a.key ? null : a.key))
+                            }
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                              on
+                                ? 'border-stone-900 bg-stone-900 text-white'
+                                : 'border-stone-200 bg-white text-muted-foreground hover:border-stone-300 hover:text-foreground'
+                            }`}
+                          >
+                            <span
+                              aria-hidden
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: a.color }}
+                            />
+                            {a.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+                  {focusedMissingName ? (
+                    <p className="border-t border-stone-200/80 px-4 py-2 text-[11px] text-amber-700">
+                      {focusedMissingName} has no reviewed segments in this week.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <p className="text-xs leading-relaxed text-muted-foreground xl:col-span-2">
+                Each dot is one annotator, in their own colour; click a dot to follow that
+                person as you step through weeks. Hover for their name and counts. Horizontal
                 axis: segments reviewed (volume). Vertical axis: share of those same segments —
                 so both charts use one denominator and stay within 100%. The two darker
                 crosshair lines are the averages across annotators, so dots far from the crossing
