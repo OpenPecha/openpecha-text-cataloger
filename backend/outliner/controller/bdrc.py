@@ -1,7 +1,6 @@
 """BDRC volume sync and document approval."""
 import asyncio
 import logging
-import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -21,6 +20,7 @@ from bdrc.volume import (
 
 from core.database import SessionLocal
 from outliner.models.outliner import OutlinerDocument
+from outliner.repository import bdrc_sync_queue
 from outliner.repository import outliner_repository as outliner_repo
 from outliner.controller.document import (
     create_document,
@@ -169,71 +169,35 @@ async def _push_with_client_cleanup(
         await aclose_http_client()
 
 
-def _push_document_segments_to_bdrc_background(
-    document_id: str,
-    bdrc_status: str,
-) -> None:
-    """Run BDRC volume push off the request path; updates synced_to_bdrc when done."""
-    db = SessionLocal()
-    try:
-        outliner_repo.set_document_synced_to_bdrc(db, document_id, False)
-        document = get_document(db, document_id, include_segments=True)
-        modified_by = _bdrc_modified_by_from_document(db, document)
-        asyncio.run(
-            _push_with_client_cleanup(
-                document, bdrc_status, modified_by=modified_by
-            )
-        )
-        outliner_repo.set_document_synced_to_bdrc(db, document_id, True)
-        logger.info(
-            "BDRC background sync OK document_id=%s status=%s",
-            document_id,
-            bdrc_status,
-        )
-    except HTTPException as e:
-        logger.warning(
-            "BDRC background sync failed document_id=%s status=%s status_code=%s detail=%s",
-            document_id,
-            bdrc_status,
-            e.status_code,
-            e.detail,
-        )
-        try:
-            outliner_repo.set_document_synced_to_bdrc(db, document_id, False)
-        except Exception:
-            logger.exception(
-                "BDRC background sync: could not persist synced_to_bdrc=false for %s",
-                document_id,
-            )
-            db.rollback()
-    except Exception:
-        logger.exception(
-            "BDRC background sync failed document_id=%s status=%s",
-            document_id,
-            bdrc_status,
-        )
-        try:
-            outliner_repo.set_document_synced_to_bdrc(db, document_id, False)
-        except Exception:
-            logger.exception(
-                "BDRC background sync: could not persist synced_to_bdrc=false for %s",
-                document_id,
-            )
-            db.rollback()
-    finally:
-        db.close()
-
-
 def enqueue_push_document_segments_to_bdrc(
     document_id: str,
     bdrc_status: str,
+    db: Optional[Session] = None,
+    requested_by: Optional[str] = None,
 ) -> None:
-    """Queue BDRC push on a daemon thread (same pattern as split auto title/author)."""
-    threading.Thread(
-        target=_push_document_segments_to_bdrc_background,
-        args=(document_id, bdrc_status),
-        daemon=True,
-    ).start()
+    """Queue a BDRC push as a durable job row, picked up by ``bdrc_sync_worker``.
+
+    A row rather than a thread is what makes the push survive a crash, deploy or restart.
+    """
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        document = outliner_repo.fetch_document_by_id(session, document_id)
+        if document is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        _validate_document_has_bdrc_volume(document)
+        bdrc_sync_queue.enqueue_sync(
+            session,
+            document_id=document_id,
+            volume_id=str(document.filename).strip(),
+            target_status=bdrc_status,
+            requested_by=requested_by,
+        )
+        # Set true again only once the worker's push succeeds.
+        outliner_repo.set_document_synced_to_bdrc(session, document_id, False)
+    finally:
+        if owns_session:
+            session.close()
 
 
 async def submit_document_to_bdrc_in_review(
@@ -248,7 +212,7 @@ async def submit_document_to_bdrc_in_review(
     _validate_document_has_bdrc_volume(document)
     # Must land before enqueue: the worker re-reads the document in its own session.
     outliner_repo.set_document_is_complete(db, document_id, is_complete)
-    enqueue_push_document_segments_to_bdrc(document_id, "in_review")
+    enqueue_push_document_segments_to_bdrc(document_id, "in_review", db=db)
     await update_document_status(db, document_id, "completed")
     save_annotator_ai_final_segments(db, document_id)
     return {"success": True}
@@ -258,7 +222,7 @@ async def sync_outliner_document_to_bdrc_in_review(db: Session, document_id: str
     """Queue BDRC in_review push in background; leaves local outliner document status unchanged."""
     document = get_document(db, document_id, include_segments=True)
     _validate_document_has_bdrc_volume(document)
-    enqueue_push_document_segments_to_bdrc(document_id, "in_review")
+    enqueue_push_document_segments_to_bdrc(document_id, "in_review", db=db)
     return {"success": True, "queued": True}
 
 
@@ -318,7 +282,7 @@ async def sync_completed_documents_to_bdrc_in_review(
                 )
                 continue
             _validate_document_has_bdrc_volume(document)
-            enqueue_push_document_segments_to_bdrc(document_id, "in_review")
+            enqueue_push_document_segments_to_bdrc(document_id, "in_review", db=db)
             queued.append({"document_id": document_id, "filename": filename})
             sync_log.info(
                 "BDRC bulk sync [%s/%s] QUEUED document_id=%s filename=%s",
@@ -396,7 +360,7 @@ async def approve_document(db: Session, document_id: str) -> Dict[str, Any]:
         )
 
     _validate_document_has_bdrc_volume(document)
-    enqueue_push_document_segments_to_bdrc(document_id, "reviewed")
+    enqueue_push_document_segments_to_bdrc(document_id, "reviewed", db=db)
     await update_document_status(db, document_id, "approved")
     outliner_repo.increment_document_submit_count(db, document_id)
     return {"success": True}

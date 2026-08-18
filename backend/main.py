@@ -115,6 +115,21 @@ app.include_router(permission_router, prefix="/settings/permissions", tags=["set
 app.include_router(tenant_settings_router, prefix="/settings/tenant-settings", tags=["settings"])
 app.include_router(membership_router, prefix="/settings/memberships", tags=["settings"])
 
+@app.on_event("startup")
+def _start_bdrc_sync_worker():
+    """Drain queued BDRC pushes in the background."""
+    from outliner.controller.bdrc_sync_worker import start_worker
+
+    start_worker()
+
+
+@app.on_event("shutdown")
+def _stop_bdrc_sync_worker():
+    from outliner.controller.bdrc_sync_worker import stop_worker
+
+    stop_worker()
+
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the FastAPI backend"}

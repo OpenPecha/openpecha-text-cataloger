@@ -5,6 +5,7 @@ from outliner.models.segment_enums import (
     SegmentStatus,
 )
 from outliner.models.active_batch import ActiveBatch
+from outliner.models.bdrc_sync_job import BdrcSyncJob
 from outliner.models.document import OutlinerDocument
 from outliner.models.segment import OutlinerSegment
 from outliner.models.segment_rejection import SegmentRejection

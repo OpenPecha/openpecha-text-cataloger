@@ -14,6 +14,7 @@ from settings.models.role import Role
 from settings.models.permission import Permission
 from outliner.models.outliner import (
     ActiveBatch,
+    BdrcSyncJob,
     OutlinerDocument,
     OutlinerSegment,
     SegmentRejection,

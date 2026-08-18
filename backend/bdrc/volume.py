@@ -42,9 +42,10 @@ _http_clients: "WeakKeyDictionary[asyncio.AbstractEventLoop, httpx.AsyncClient]"
 
 
 def _new_http_client() -> httpx.AsyncClient:
-    # No request timeout: large volume updates and bulk sync can exceed any fixed limit.
+    # Generous but finite: a hung push must not stall a worker indefinitely. The sync
+    # queue retries anything that trips this.
     return httpx.AsyncClient(
-        timeout=None,
+        timeout=httpx.Timeout(600.0, connect=30.0),
         limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
         follow_redirects=True,
     )

@@ -10,6 +10,7 @@ from bdrc import work as bdrc_work_module
 from bdrc import person as bdrc_person_module
 from core.database import get_db
 from outliner.controller.outliner import sync_completed_documents_to_bdrc_in_review
+from outliner.repository import bdrc_sync_queue
 
 load_dotenv(override=True)
 
@@ -269,6 +270,38 @@ async def get_work(work_id: str):
         "title": title,
         "authors": authors,
     }
+
+
+@router.get("/sync/health")
+def bdrc_sync_health(db: Session = Depends(get_db)):
+    """Queue depth by state, plus recent failures.
+
+    ``failed`` jobs have exhausted their retries and will not resync on their own.
+    """
+    counts = bdrc_sync_queue.sync_health_counts(db)
+    failed = bdrc_sync_queue.list_failed_jobs(db, limit=20)
+    return {
+        "counts": counts,
+        "healthy": counts.get("failed", 0) == 0,
+        "recent_failures": [
+            {
+                "volume_id": job.volume_id,
+                "document_id": job.document_id,
+                "target_status": job.target_status,
+                "attempts": job.attempts,
+                "last_error": job.last_error,
+                "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+            }
+            for job in failed
+        ],
+    }
+
+
+@router.post("/sync/retry-failed")
+def bdrc_sync_retry_failed(db: Session = Depends(get_db)):
+    """Put every failed job back in the queue."""
+    requeued = bdrc_sync_queue.requeue_failed_jobs(db)
+    return {"requeued": requeued}
 
 
 @router.post("/sync")
