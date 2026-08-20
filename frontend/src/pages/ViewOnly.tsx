@@ -32,9 +32,6 @@ function sortSegments(list: OutlinerSegment[] | undefined): OutlinerSegment[] {
   return [...(list ?? [])].sort((a, b) => a.segment_index - b.segment_index);
 }
 
-// Mirror what is published to BDRC: the reviewer's correction wins (see
-// _push_document_segments_to_bdrc, which sends reviewer_title/author when set).
-// Fall back to the annotator's manual edit (updated_*), then the original.
 function effectiveTitle(s: OutlinerSegment): string {
   const v =
     s.reviewer_title?.trim() ||
@@ -43,9 +40,12 @@ function effectiveTitle(s: OutlinerSegment): string {
   return v || '—';
 }
 
+// reviewer_author === '' is a deliberate blank (published to BDRC as empty), not a fallthrough.
 function effectiveAuthor(s: OutlinerSegment): string {
+  if (s.reviewer_author != null) {
+    return s.reviewer_author.trim() || '—';
+  }
   const v =
-    s.reviewer_author?.trim() ||
     s.updated_author?.trim() ||
     s.author?.trim();
   return v || '—';
