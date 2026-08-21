@@ -17,7 +17,7 @@ type AdminNavItem = {
 };
 
 const ADMIN_LINKS: AdminNavItem[] = [
-  { to: "/outliner-admin", label: "Overview", exact: true ,icon: <HomeIcon className="w-4 h-4" />},
+  { to: "/outliner-admin/overview", label: "Overview", icon: <HomeIcon className="w-4 h-4" />},
   { to: "/outliner-admin/statistics", label: "Statistics", icon: <BarChart2 className="w-4 h-4" />},
   { to: "/outliner-admin/reviewer-stats", label: "Reviewer Stats", icon: <ClipboardCheck className="w-4 h-4" />},
   { to: "/outliner-admin/documents", label: "Documents" ,icon: <FileIcon className="w-4 h-4" />},

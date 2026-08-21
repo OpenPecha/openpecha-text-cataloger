@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation,Link } from 'react-router-dom';
+import { Routes, Route, useLocation,Link, Navigate } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 
 import { Navigation, ProtectedRoute } from '@app';
@@ -148,16 +148,19 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/outliner-admin" element={
-            <ProtectedRoute>
-              <OutlinerAdminLayout >
-                <OutlinerAdminDashboardLazy />
-              </OutlinerAdminLayout>
-            </ProtectedRoute>
+            <Navigate to="/outliner-admin/documents" replace />
           } />
           <Route path="/outliner-admin/statistics" element={
             <ProtectedRoute>
               <OutlinerAdminLayout>
                 <OutlinerAdminStatisticsLazy />
+              </OutlinerAdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/outliner-admin/overview" element={
+            <ProtectedRoute>
+              <OutlinerAdminLayout >
+                <OutlinerAdminDashboardLazy />
               </OutlinerAdminLayout>
             </ProtectedRoute>
           } />
