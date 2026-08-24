@@ -121,7 +121,9 @@ def split_segment(
         author=None,
         label=label,
         parent_segment_id=segment.parent_segment_id,
-        status=segment.status or 'unchecked'
+        # Rejections are keyed by segment id, so the new half has no reviewer note of its own;
+        # inheriting `rejected` would show it flagged red with nothing explaining why.
+        status='unchecked' if segment.status == 'rejected' else (segment.status or 'unchecked')
     )
 
     outliner_repo.execute_bump_segment_indices_after(

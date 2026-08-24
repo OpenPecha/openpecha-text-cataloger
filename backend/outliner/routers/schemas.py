@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 
 class SegmentRejectionReviewer(BaseModel):
@@ -27,6 +27,22 @@ class SegmentRejectionReviewer(BaseModel):
 SegmentAttributionUser = SegmentRejectionReviewer
 
 
+class MarkedSpan(BaseModel):
+    """One stretch of wrong text a reviewer marked, in document-absolute offsets."""
+
+    start: int = Field(..., ge=0)
+    end: int = Field(..., ge=0)
+    note: Optional[str] = Field(
+        None, description="Optional per-mark explanation; the rejection comment covers the rest"
+    )
+
+    @model_validator(mode="after")
+    def _end_after_start(self):
+        if self.end <= self.start:
+            raise ValueError("Marked span end must be greater than start")
+        return self
+
+
 class SegmentRejectionSummary(BaseModel):
     """Bundled rejection fields for segment payloads (avoid flat rejection_* keys)."""
 
@@ -34,6 +50,7 @@ class SegmentRejectionSummary(BaseModel):
     reason: Optional[str] = None
     reviewer: Optional[SegmentRejectionReviewer] = None
     resolved: Optional[bool] = None
+    marked_spans: Optional[List[MarkedSpan]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,6 +70,7 @@ class SegmentRejectionHistoryItem(BaseModel):
     reason: Optional[str] = None
     resolved: Optional[bool] = None
     reviewer: Optional[SegmentRejectionReviewer] = None
+    marked_spans: Optional[List[MarkedSpan]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -167,6 +185,10 @@ class SegmentResponse(BaseModel):
 
 class RejectSegmentRequest(BaseModel):
     comment: str = Field(..., min_length=1, description="Required explanation for the annotator")
+    marked_spans: Optional[List[MarkedSpan]] = Field(
+        None,
+        description="Optional stretches of wrong text inside the segment (document-absolute offsets)",
+    )
 
 
 class SegmentReviewRequest(BaseModel):

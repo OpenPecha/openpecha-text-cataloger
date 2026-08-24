@@ -34,6 +34,8 @@ import { SegmentHighlightedText } from '@/components/outliner/SegmentHighlighted
 import { findAllOccurrences } from '@/features/outliner';
 import { getSegmentHighlightWords } from '@/utils/segmentHighlightWords';
 import { SegmentAttributionBar } from './SegmentAttributionBar';
+import { MarkedTextChips } from './MarkedTextChips';
+import { normalizeMarks, toMarkedSpans, type DraftMark } from './markedSpans';
 
 const REJECTION_REASONS = [
   'reconstructed ལ་འགྲིག་རྟགས་བཀོད་དགོས།',
@@ -93,6 +95,8 @@ function SegmentRow({
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [selectedRejectReasons, setSelectedRejectReasons] = useState<string[]>([]);
+  /** Body coordinates; converted to document offsets on submit. */
+  const [rejectMarks, setRejectMarks] = useState<DraftMark[]>([]);
   const [rejectionHistoryOpen, setRejectionHistoryOpen] = useState(false);
   const rejectionCount = segment.rejection?.count ?? 0;
   const { document: selectedDocument, isLoading: isLoadingDocument } = useDocument(documentId);
@@ -196,7 +200,8 @@ function SegmentRow({
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (comment: string) => rejectSegment(segment.id, comment),
+    mutationFn: (comment: string) =>
+      rejectSegment(segment.id, comment, toMarkedSpans(rejectMarks, segment.span_start)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['outliner-admin-document', documentId] });
       queryClient.invalidateQueries({ queryKey: ['segment-rejection-history', segment.id] });
@@ -204,6 +209,7 @@ function SegmentRow({
       setRejectDialogOpen(false);
       setRejectComment('');
       setSelectedRejectReasons([]);
+      setRejectMarks([]);
     },
     onError: (error: Error) => {
       toast.error(`Failed to reject segment: ${error.message}`);
@@ -385,6 +391,56 @@ function SegmentRow({
     [onToggleExpansion, segment.id]
   );
 
+  /** Runs alongside `reportBodyCaret`, which handles the collapsed-caret case for image sync. */
+  const handleBodySelectionMark = useCallback(() => {
+    if (!canEditReview) return;
+    const el = segmentBodyRef.current;
+    if (!el) return;
+    const selection = globalThis.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+    const range = selection.getRangeAt(0);
+    if (!el.contains(range.commonAncestorContainer)) return;
+
+    const offsetOf = (container: Node, nodeOffset: number) => {
+      const pre = range.cloneRange();
+      pre.selectNodeContents(el);
+      pre.setEnd(container, nodeOffset);
+      return pre.toString().length;
+    };
+    const a = offsetOf(range.startContainer, range.startOffset);
+    const b = offsetOf(range.endContainer, range.endOffset);
+    const start = Math.min(a, b);
+    const end = Math.max(a, b);
+    if (end <= start) return;
+
+    setRejectMarks((prev) => normalizeMarks([...prev, { start, end }]));
+    selection.removeAllRanges();
+  }, [canEditReview]);
+
+  const removeMarkAt = useCallback((start: number) => {
+    setRejectMarks((prev) => prev.filter((m) => m.start !== start));
+  }, []);
+
+  const scrollToMark = useCallback(
+    (start: number) => {
+      if (!isExpanded) onToggleExpansion(segment.id);
+      setTimeout(() => {
+        const root = segmentBodyRef.current;
+        const el = root?.querySelector<HTMLElement>(`[data-mark-offset="${start}"]`);
+        if (!root || !el) return;
+        const target =
+          root.scrollTop +
+          (el.getBoundingClientRect().top - root.getBoundingClientRect().top) -
+          root.clientHeight / 2 +
+          el.offsetHeight / 2;
+        root.scrollTop = Math.max(0, Math.min(target, root.scrollHeight - root.clientHeight));
+        el.classList.add('ring-2', 'ring-red-500');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-red-500'), 700);
+      }, isExpanded ? 0 : 60);
+    },
+    [isExpanded, onToggleExpansion, segment.id]
+  );
+
   const reportBodyCaret = useCallback(() => {
     if (!onSegmentBodyCaretChange || !segmentBodyRef.current) return;
     const el = segmentBodyRef.current;
@@ -522,7 +578,10 @@ function SegmentRow({
                 ref={segmentBodyRef}
                 tabIndex={0}
                 aria-label="Segment text (read-only; click to sync volume image)"
-                onMouseUp={reportBodyCaret}
+                onMouseUp={() => {
+                  reportBodyCaret();
+                  handleBodySelectionMark();
+                }}
                 onFocus={reportBodyCaret}
                 onBlur={() => onSegmentBodyCaretChange?.(segment.id, null)}
                 style={{ backgroundColor: textBgColor }}
@@ -533,6 +592,8 @@ function SegmentRow({
                   titleWords={highlightWords.titleWords}
                   authorWords={highlightWords.authorWords}
                   searchWords={searchWords}
+                  markedSpans={rejectMarks}
+                  onMarkClick={canEditReview ? removeMarkAt : undefined}
                 />
               </div>
             ) : (
@@ -556,6 +617,21 @@ function SegmentRow({
                   `${segment.text.length > 200 ? `${segment.text.slice(0, 200)}…` : segment.text}`
                 )}
               </button>
+            )}
+
+            {canEditReview && isExpanded && (
+              <MarkedTextChips
+                text={segment.text}
+                marks={rejectMarks}
+                onScrollTo={scrollToMark}
+                onRemove={removeMarkAt}
+                onNoteChange={(start, note) =>
+                  setRejectMarks((prev) =>
+                    prev.map((m) => (m.start === start ? { ...m, note: note || undefined } : m))
+                  )
+                }
+                onClearAll={() => setRejectMarks([])}
+              />
             )}
           </div>
        
@@ -887,6 +963,12 @@ function SegmentRow({
             className="min-h-[100px] text-sm"
             disabled={rejectMutation.isPending}
           />
+          {rejectMarks.length > 0 && (
+            <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-900">
+              {rejectMarks.length} marked {rejectMarks.length === 1 ? 'passage' : 'passages'} will
+              be sent with this rejection.
+            </p>
+          )}
           <DialogFooter className="gap-2 sm:gap-2">
             <Button
               type="button"

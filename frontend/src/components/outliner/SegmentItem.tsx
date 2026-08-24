@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import {  Merge, AlertCircle, Loader2 } from 'lucide-react'
@@ -60,9 +60,27 @@ const SegmentItem: React.FC<SegmentItemProps> = ({
     toggleSegmentExpanded,
   } = useActions()
 
-  const isChecked = segment.status === 'checked' 
+  const isChecked = segment.status === 'checked'
   const isApproved = segment.status === 'approved'
   const isRejected = segment.status === 'rejected'
+  /**
+   * Marks are stored document-absolute; the body renders from offset 0, so shift by span_start.
+   * Clipped to the body in case the segment was re-bounded by a split since.
+   */
+  const markedSpans = useMemo(() => {
+    const spans = segment.rejection?.marked_spans
+    if (!isRejected || !spans?.length || segment.span_start == null) return undefined
+    const base = segment.span_start
+    const length = segment.text.length
+    return spans
+      .map((s) => ({
+        start: Math.max(0, s.start - base),
+        end: Math.min(length, s.end - base),
+        note: s.note,
+      }))
+      .filter((s) => s.end > s.start)
+      .sort((a, b) => a.start - b.start)
+  }, [isRejected, segment.rejection?.marked_spans, segment.span_start, segment.text.length])
   const rejectionReviewerPicture =
     segment.rejection?.reviewer?.picture?.trim() || ''
   const isFirstSegment = index === 0
@@ -72,6 +90,28 @@ const SegmentItem: React.FC<SegmentItemProps> = ({
 
   const segmentSearchQuery =
     segment.id === activeSegmentId ? activeSegmentSearchQuery : ''
+
+  /** Expands the segment first when collapsed, since the marks are not in the DOM until then. */
+  const scrollToMark = useCallback(
+    (offset: number) => {
+      const focus = () => {
+        const el = document.querySelector<HTMLElement>(
+          `[data-segment-container-id="${segment.id}"] [data-mark-offset="${offset}"]`
+        )
+        if (!el) return
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        el.classList.add('ring-2', 'ring-red-500')
+        setTimeout(() => el.classList.remove('ring-2', 'ring-red-500'), 700)
+      }
+      if (!expandedSegmentIds.includes(segment.id) && segments.length > 1) {
+        toggleSegmentExpanded(segment.id)
+        setTimeout(focus, 50)
+      } else {
+        focus()
+      }
+    },
+    [segment.id, expandedSegmentIds, segments.length, toggleSegmentExpanded]
+  )
 
   const isExpanded =
     segments.length === 1 || expandedSegmentIds.includes(segment.id)
@@ -196,6 +236,28 @@ const SegmentItem: React.FC<SegmentItemProps> = ({
                 {t('outliner.segment.reviewerRejectionNote')}
               </span>
               <p className="mt-1 whitespace-pre-wrap font-medium">{segment.rejection.reason}</p>
+              {markedSpans?.length ? (
+                <ul className="mt-2 space-y-1 border-t border-red-200 pt-2">
+                  {markedSpans.map((span) => (
+                    <li key={`${span.start}-${span.end}`} className="text-xs">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          scrollToMark(span.start)
+                        }}
+                        title={t('outliner.segment.scrollToMark')}
+                        className="text-left hover:underline"
+                      >
+                        <span className="rounded-sm bg-red-200/90 px-1 font-monlam">
+                          {segment.text.slice(span.start, span.end)}
+                        </span>
+                        {span.note ? <span className="ml-1.5">— {span.note}</span> : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -283,6 +345,7 @@ const SegmentItem: React.FC<SegmentItemProps> = ({
                   title={segment.title}
                   author={segment.author}
                   segmentSearchQuery={segmentSearchQuery}
+                  markedSpans={markedSpans}
                   onCursorChange={(segmentId, element) => onCursorChange(segmentId, element)}
                   onActivate={() => onActivate(segment.id)}
                   onInput={onInput}

@@ -515,6 +515,7 @@
       "rejected": "已驳回",
       "rejectedMany": "已驳回 {{count}} 次",
       "reviewerRejectionNote": "审核说明",
+      "scrollToMark": "跳转到片段中的此文本",
       "rejectedByReviewer": "审核人：{{name}}",
       "failedUpdateLabel": "更新标签失败",
       "labelField": "标签",

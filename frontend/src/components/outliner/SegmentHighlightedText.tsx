@@ -6,6 +6,8 @@ const HIGHLIGHT_CLASS = {
   title: 'segment-highlight-title rounded-sm bg-sky-200/85 box-decoration-clone',
   author: 'segment-highlight-author rounded-sm bg-violet-200/85 box-decoration-clone',
   search: 'highlighter rounded-sm bg-amber-200/90 box-decoration-clone',
+  rejection:
+    'segment-rejection-mark rounded-sm bg-red-200/90 box-decoration-clone transition-shadow',
 } as const;
 
 export interface SegmentHighlightedTextProps {
@@ -16,6 +18,12 @@ export interface SegmentHighlightedTextProps {
   authorWords?: string[];
   /** In-segment search terms (amber; uses `.highlighter` for match navigation). */
   searchWords?: string[];
+  /**
+   * Reviewer-marked wrong text (red), by offset rather than by word.
+   * Rendered as an outer layer so word highlights still apply inside a mark.
+   */
+  markedSpans?: { start: number; end: number }[];
+  onMarkClick?: (start: number) => void;
   className?: string;
 }
 
@@ -44,11 +52,29 @@ function normalizedSearchWords(words: string[] | undefined): string[] {
   return (words ?? []).map((w) => normalizeSearchQuery(w)).filter(Boolean);
 }
 
+/** Split text at mark boundaries so word highlighting can run inside each piece. */
+function spanRuns(text: string, spans: { start: number; end: number }[]) {
+  const runs: { text: string; start: number; marked: boolean }[] = [];
+  let cursor = 0;
+  for (const span of [...spans].sort((a, b) => a.start - b.start)) {
+    const start = Math.max(0, Math.min(span.start, text.length));
+    const end = Math.max(start, Math.min(span.end, text.length));
+    if (end <= cursor) continue;
+    if (start > cursor) runs.push({ text: text.slice(cursor, start), start: cursor, marked: false });
+    runs.push({ text: text.slice(start, end), start, marked: true });
+    cursor = end;
+  }
+  if (cursor < text.length) runs.push({ text: text.slice(cursor), start: cursor, marked: false });
+  return runs;
+}
+
 export function SegmentHighlightedText({
   text,
   titleWords = [],
   authorWords = [],
   searchWords = [],
+  markedSpans,
+  onMarkClick,
   className,
 }: SegmentHighlightedTextProps) {
   const wordClass = useMemo(() => {
@@ -70,21 +96,61 @@ export function SegmentHighlightedText({
 
   if (!text) return null;
 
-  if (allSearchWords.length === 0) {
-    return <span className={className}>{text}</span>;
+  const words = (chunk: string) =>
+    allSearchWords.length === 0 ? (
+      chunk
+    ) : (
+      <Highlighter
+        searchWords={allSearchWords}
+        autoEscape
+        textToHighlight={chunk}
+        highlightTag={({ children }) => (
+          <mark className={wordClass.get(String(children)) ?? HIGHLIGHT_CLASS.search}>
+            {children}
+          </mark>
+        )}
+      />
+    );
+
+  if (!markedSpans?.length) {
+    return allSearchWords.length === 0 ? (
+      <span className={className}>{text}</span>
+    ) : (
+      <span className={className}>{words(text)}</span>
+    );
   }
 
   return (
-    <Highlighter
-      className={className}
-      searchWords={allSearchWords}
-      autoEscape
-      textToHighlight={text}
-      highlightTag={({ children }) => (
-        <mark className={wordClass.get(String(children)) ?? HIGHLIGHT_CLASS.search}>
-          {children}
-        </mark>
+    <span className={className}>
+      {spanRuns(text, markedSpans).map((run) =>
+        run.marked ? (
+          <mark
+            key={`mk-${run.start}`}
+            data-mark-offset={run.start}
+            className={`${HIGHLIGHT_CLASS.rejection}${
+              onMarkClick ? ' cursor-pointer hover:bg-red-300' : ''
+            }`}
+            onClick={onMarkClick ? () => onMarkClick(run.start) : undefined}
+            onKeyDown={
+              onMarkClick
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onMarkClick(run.start);
+                    }
+                  }
+                : undefined
+            }
+            role={onMarkClick ? 'button' : undefined}
+            tabIndex={onMarkClick ? 0 : undefined}
+            title={onMarkClick ? 'Click to remove this mark' : undefined}
+          >
+            {words(run.text)}
+          </mark>
+        ) : (
+          <span key={`tx-${run.start}`}>{words(run.text)}</span>
+        )
       )}
-    />
+    </span>
   );
 }

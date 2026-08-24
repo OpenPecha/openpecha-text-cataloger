@@ -36,11 +36,19 @@ def latest_rejection_resolved_for_orm_segment(
     return outliner_repo.latest_rejection_resolved_for_orm_segment(db, segment)
 
 
+def latest_rejection_marked_spans_for_orm_segment(
+    db: Optional[Session], segment: OutlinerSegment
+) -> Optional[List[Dict[str, Any]]]:
+    """Reviewer-marked wrong-text spans on the latest rejection row."""
+    return outliner_repo.latest_rejection_marked_spans_for_orm_segment(db, segment)
+
+
 def reject_segment(
     db: Session,
     segment_id: str,
     reviewer_id: Optional[str] = None,
     rejection_reason: Optional[str] = None,
+    marked_spans: Optional[List[Dict[str, Any]]] = None,
 ) -> OutlinerSegment:
     """Reject a checked segment and record the rejection event"""
     segment = outliner_repo.get_segment_plain(db, segment_id)
@@ -56,9 +64,35 @@ def reject_segment(
     annotator_id = document.user_id if document else None
 
     outliner_repo.apply_rejection_to_segment(
-        db, segment, annotator_id, reviewer_id, reason
+        db, segment, annotator_id, reviewer_id, reason, _clamp_spans_to_segment(segment, marked_spans)
     )
     return segment
+
+
+def _clamp_spans_to_segment(
+    segment: OutlinerSegment, marked_spans: Optional[List[Dict[str, Any]]]
+) -> Optional[List[Dict[str, Any]]]:
+    """
+    Keep only marks that fall inside the segment's own document range, clipped to it.
+
+    Guards against a stale client sending offsets from a segment that has since been
+    split or re-bounded, which would otherwise highlight text the reviewer never marked.
+    """
+    if not marked_spans:
+        return None
+    lo, hi = segment.span_start, segment.span_end
+    cleaned: List[Dict[str, Any]] = []
+    for span in marked_spans:
+        start = max(int(span["start"]), lo)
+        end = min(int(span["end"]), hi)
+        if end <= start:
+            continue
+        entry: Dict[str, Any] = {"start": start, "end": end}
+        note = (span.get("note") or "").strip()
+        if note:
+            entry["note"] = note
+        cleaned.append(entry)
+    return cleaned or None
 
 
 def reject_segments_bulk(

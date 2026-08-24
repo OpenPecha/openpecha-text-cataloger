@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -37,6 +37,9 @@ class SegmentRejection(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    #: [{"start": int, "end": int, "note": str | None}, ...]. Offsets are document-absolute
+    #: so marks survive splits, which rewrite segment bounds but not document content.
+    marked_spans: Mapped[list | None] = mapped_column(JSON, nullable=True)
     segment: Mapped["OutlinerSegment"] = relationship("OutlinerSegment", back_populates="rejections")
     reviewer: Mapped[User | None] = relationship(
         User,

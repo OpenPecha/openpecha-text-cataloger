@@ -118,6 +118,16 @@ export interface SegmentRejectionReviewer {
   picture?: string | null;
 }
 
+/**
+ * A stretch of wrong text a reviewer marked while rejecting a segment.
+ * Offsets are document-absolute so a mark survives the segment being split.
+ */
+export interface MarkedSpan {
+  start: number;
+  end: number;
+  note?: string | null;
+}
+
 /** Bundled rejection info on segment payloads (document GET + segment CRUD). */
 export interface SegmentRejection {
   count: number;
@@ -125,6 +135,8 @@ export interface SegmentRejection {
   reviewer?: SegmentRejectionReviewer | null;
   /** True after annotator saves the segment while it was rejected (latest rejection row). */
   resolved?: boolean | null;
+  /** From the latest rejection; only present while status is rejected. */
+  marked_spans?: MarkedSpan[] | null;
 }
 
 /** One historical rejection row (GET …/segments/:id/rejections). */
@@ -134,6 +146,7 @@ export interface SegmentRejectionHistoryItem {
   reason?: string | null;
   resolved?: boolean | null;
   reviewer?: SegmentRejectionReviewer | null;
+  marked_spans?: MarkedSpan[] | null;
 }
 
 export interface SegmentRejectionHistoryResponse {
@@ -716,12 +729,16 @@ export const getSegmentReviews = async (
 
 export const rejectSegment = async (
   segmentId: string,
-  comment: string
+  comment: string,
+  markedSpans?: MarkedSpan[]
 ): Promise<OutlinerSegment> => {
   const response = await outlinerFetch(`${OUTLINER_BASE_URL}/segments/${segmentId}/reject`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comment }),
+    body: JSON.stringify({
+      comment,
+      ...(markedSpans?.length ? { marked_spans: markedSpans } : {}),
+    }),
   });
   return handleApiResponse(response);
 };

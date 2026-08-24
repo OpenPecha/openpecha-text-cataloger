@@ -47,6 +47,8 @@ export interface SegmentTextContentProps {
   author?: string
   /** Plain-text query; matches are highlighted in the segment (case-insensitive). */
   segmentSearchQuery?: string
+  /** Reviewer-marked wrong text, in body-relative offsets, sorted and non-overlapping. */
+  markedSpans?: { start: number; end: number; note?: string | null }[]
   onCursorChange: (segmentId: string, element: HTMLDivElement) => void
   onActivate: () => void
   onInput: (e: React.FormEvent<HTMLDivElement>) => void

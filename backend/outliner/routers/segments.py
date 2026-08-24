@@ -302,7 +302,13 @@ async def reject_segment(
     doc_owner, doc_reviewer = get_document_review_context_for_segment(db, segment_id)
     assert_assigned_document_reviewer(doc_reviewer, current_user)
     can_user_reject_segment(current_user, [doc_owner])
-    segment = reject_segment_ctrl(db, segment_id, current_user.id, body.comment)
+    segment = reject_segment_ctrl(
+        db,
+        segment_id,
+        current_user.id,
+        body.comment,
+        [span.model_dump() for span in body.marked_spans] if body.marked_spans else None,
+    )
     return build_segment_response(
         segment,
         db,

@@ -87,6 +87,7 @@ from outliner.repository.segment_rejection import (
     delete_latest_rejection,
     get_segment_rejection_count,
     handle_segment_leaving_rejected_status,
+    latest_rejection_marked_spans_for_orm_segment,
     latest_rejection_notice_by_document_ids,
     latest_rejection_reason_for_orm_segment,
     latest_rejection_resolved_for_orm_segment,

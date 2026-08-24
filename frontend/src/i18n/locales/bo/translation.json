@@ -515,6 +515,7 @@
       "rejected": "ཕྱིར་ལན།",
       "rejectedMany": "ཐེངས་{{count}} ཕྱིར་ལན།",
       "reviewerRejectionNote": "བསྐྱར་ཞིབ་པའི་གསལ་བཤད།",
+      "scrollToMark": "ཆ་ཤས་ནང་གི་ཡི་གེ་འདིར་སོང་།",
       "rejectedByReviewer": "{{name}} གྱིས་ཕྱིར་ལོག",
       "failedUpdateLabel": "ཁ་བྱང་གསར་སྒྱུར་མ་ཐུབ།",
       "labelField": "ཁ་བྱང་།",

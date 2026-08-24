@@ -41,9 +41,10 @@ def rejection_counts_reasons_reviewers_by_segment_ids(
     Dict[str, Optional[str]],
     Dict[str, Optional[Dict[str, Any]]],
     Dict[str, Optional[bool]],
+    Dict[str, Optional[List[Dict[str, Any]]]],
 ]:
     if not segment_ids:
-        return {}, {}, {}, {}
+        return {}, {}, {}, {}, {}
     rows = (
         db.query(
             SegmentRejection.segment_id,
@@ -54,6 +55,7 @@ def rejection_counts_reasons_reviewers_by_segment_ids(
             SegmentRejection.resolved,
             User.name,
             User.picture,
+            SegmentRejection.marked_spans,
         )
         .outerjoin(User, User.id == SegmentRejection.reviewer_id)
         .filter(SegmentRejection.segment_id.in_(segment_ids))
@@ -69,14 +71,25 @@ def rejection_counts_reasons_reviewers_by_segment_ids(
         resolved,
         name,
         picture,
+        marked_spans,
     ) in rows:
         by_seg.setdefault(segment_id, []).append(
-            (created_at, rid, rejection_reason, reviewer_id, name, picture, resolved)
+            (
+                created_at,
+                rid,
+                rejection_reason,
+                reviewer_id,
+                name,
+                picture,
+                resolved,
+                marked_spans,
+            )
         )
     counts: Dict[str, int] = {}
     reasons: Dict[str, Optional[str]] = {}
     reviewers: Dict[str, Optional[Dict[str, Any]]] = {}
     latest_resolved: Dict[str, Optional[bool]] = {}
+    latest_spans: Dict[str, Optional[List[Dict[str, Any]]]] = {}
     for sid, items in by_seg.items():
         counts[sid] = len(items)
         latest = max(
@@ -89,11 +102,12 @@ def rejection_counts_reasons_reviewers_by_segment_ids(
         reasons[sid] = latest[2]
         rev_id, rev_name, rev_pic = latest[3], latest[4], latest[5]
         latest_resolved[sid] = latest[6]
+        latest_spans[sid] = latest[7] or None
         if not rev_id:
             reviewers[sid] = None
         else:
             reviewers[sid] = {"id": rev_id, "name": rev_name, "picture": rev_pic}
-    return counts, reasons, reviewers, latest_resolved
+    return counts, reasons, reviewers, latest_resolved, latest_spans
 
 
 def latest_rejection_notice_by_document_ids(
@@ -208,9 +222,13 @@ def update_segment_with_rejection_fields(db: Session, segment_list: List[dict]) 
     if not segment_list:
         return
     ids = [s["id"] for s in segment_list]
-    counts, reasons, reviewers, latest_resolved = rejection_counts_reasons_reviewers_by_segment_ids(
-        db, ids
-    )
+    (
+        counts,
+        reasons,
+        reviewers,
+        latest_resolved,
+        latest_spans,
+    ) = rejection_counts_reasons_reviewers_by_segment_ids(db, ids)
     for s in segment_list:
         sid = s["id"]
         count = counts.get(sid, 0)
@@ -219,8 +237,10 @@ def update_segment_with_rejection_fields(db: Session, segment_list: List[dict]) 
             continue
         reason = None
         reviewer_payload = None
+        spans = None
         if s.get("status") == "rejected":
             reason = reasons.get(sid)
+            spans = latest_spans.get(sid)
         rr = reviewers.get(sid)
         if rr and rr.get("id"):
             p = rr.get("picture")
@@ -236,6 +256,7 @@ def update_segment_with_rejection_fields(db: Session, segment_list: List[dict]) 
             "reason": reason,
             "reviewer": reviewer_payload,
             "resolved": latest_resolved.get(sid),
+            "marked_spans": spans,
         }
 
 
@@ -276,6 +297,27 @@ def latest_rejection_resolved_for_orm_segment(
         .first()
     )
     return row[0] if row else None
+
+
+def latest_rejection_marked_spans_for_orm_segment(
+    db: Optional[Session], segment: OutlinerSegment
+) -> Optional[List[Dict[str, Any]]]:
+    """Marked wrong-text spans on the newest rejection row; only while still rejected."""
+    if segment.status != "rejected":
+        return None
+    rel = getattr(segment, "rejections", None)
+    if rel:
+        latest = max(rel, key=lambda r: r.created_at)
+        return latest.marked_spans or None
+    if db is None:
+        return None
+    row = (
+        db.query(SegmentRejection.marked_spans)
+        .filter(SegmentRejection.segment_id == segment.id)
+        .order_by(SegmentRejection.created_at.desc())
+        .first()
+    )
+    return (row[0] or None) if row else None
 
 
 def mark_latest_rejection_resolved(db: Session, segment_id: str) -> None:
@@ -352,6 +394,7 @@ def apply_rejection_to_segment(
     annotator_id: Optional[str],
     reviewer_id: Optional[str],
     reason: str,
+    marked_spans: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     rejection = SegmentRejection(
         id=str(uuid.uuid4()),
@@ -360,6 +403,7 @@ def apply_rejection_to_segment(
         reviewer_id=reviewer_id,
         rejection_reason=reason,
         resolved=False,
+        marked_spans=marked_spans or None,
     )
     db.add(rejection)
     old_st = segment.status
@@ -388,6 +432,7 @@ def list_rejections_for_segment(db: Session, segment_id: str) -> List[Dict[str, 
             SegmentRejection.reviewer_id,
             User.name,
             User.picture,
+            SegmentRejection.marked_spans,
         )
         .outerjoin(User, User.id == SegmentRejection.reviewer_id)
         .filter(SegmentRejection.segment_id == segment_id)
@@ -395,7 +440,7 @@ def list_rejections_for_segment(db: Session, segment_id: str) -> List[Dict[str, 
         .all()
     )
     out: List[Dict[str, Any]] = []
-    for rid, created_at, reason, resolved, reviewer_id, name, picture in rows:
+    for rid, created_at, reason, resolved, reviewer_id, name, picture, marked_spans in rows:
         reviewer_payload = None
         if reviewer_id:
             pic = picture
@@ -414,6 +459,7 @@ def list_rejections_for_segment(db: Session, segment_id: str) -> List[Dict[str, 
                 "reason": reason_text,
                 "resolved": resolved,
                 "reviewer": reviewer_payload,
+                "marked_spans": marked_spans or None,
             }
         )
     return out
