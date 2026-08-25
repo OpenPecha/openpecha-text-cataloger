@@ -393,10 +393,10 @@ function SegmentRow({
   );
 
   /**
-   * Selecting text marks it as incorrect. The mark is shown only as a chip
-   * below — the body text is left unpainted so the native (blue) selection
-   * stays visible and Ctrl+C keeps working; reviewers paste the copied text
-   * into the title/author suggestion fields instead of retyping Tibetan.
+   * Selecting text marks it as incorrect. The selection is deliberately left in
+   * place so Ctrl+C keeps working — reviewers paste the copied text into the
+   * title/author suggestion fields instead of retyping Tibetan. Until the
+   * segment is rejected the marks live only in the chips below.
    *
    * Runs alongside `reportBodyCaret`, which handles the collapsed-caret case for image sync.
    */
@@ -428,24 +428,76 @@ function SegmentRow({
     setRejectMarks((prev) => prev.filter((m) => m.start !== start));
   }, []);
 
+  const isRejected = segment.status === 'rejected';
+
+  /**
+   * Rejected marks are already red, so clicking a chip only outlines them —
+   * a selection there would fight the highlight. While drafting nothing is
+   * painted, so the passage is re-selected natively and stays copyable.
+   */
   const scrollToMark = useCallback(
-    (start: number) => {
+    (start: number, end: number) => {
       if (!isExpanded) onToggleExpansion(segment.id);
       setTimeout(() => {
         const root = segmentBodyRef.current;
-        const el = root?.querySelector<HTMLElement>(`[data-mark-offset="${start}"]`);
-        if (!root || !el) return;
+        if (!root) return;
+
+        if (isRejected) {
+          const el = root.querySelector<HTMLElement>(`[data-mark-offset="${start}"]`);
+          if (!el) return;
+          const target =
+            root.scrollTop +
+            (el.getBoundingClientRect().top - root.getBoundingClientRect().top) -
+            root.clientHeight / 2 +
+            el.offsetHeight / 2;
+          root.scrollTop = Math.max(0, Math.min(target, root.scrollHeight - root.clientHeight));
+          el.classList.add('ring-2', 'ring-red-600', 'ring-offset-1');
+          setTimeout(
+            () => el.classList.remove('ring-2', 'ring-red-600', 'ring-offset-1'),
+            1200
+          );
+          return;
+        }
+
+        /** Walk text nodes to turn body-relative offsets back into a DOM range. */
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let consumed = 0;
+        let startNode: Text | null = null;
+        let startOffset = 0;
+        let endNode: Text | null = null;
+        let endOffset = 0;
+        let node = walker.nextNode() as Text | null;
+        while (node) {
+          const len = node.data.length;
+          if (!startNode && consumed + len >= start) {
+            startNode = node;
+            startOffset = start - consumed;
+          }
+          if (consumed + len >= end) {
+            endNode = node;
+            endOffset = end - consumed;
+            break;
+          }
+          consumed += len;
+          node = walker.nextNode() as Text | null;
+        }
+        if (!startNode || !endNode) return;
+
+        const range = document.createRange();
+        range.setStart(startNode, Math.max(0, Math.min(startOffset, startNode.data.length)));
+        range.setEnd(endNode, Math.max(0, Math.min(endOffset, endNode.data.length)));
+        const selection = globalThis.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+
+        const rect = range.getBoundingClientRect();
+        const hostRect = root.getBoundingClientRect();
         const target =
-          root.scrollTop +
-          (el.getBoundingClientRect().top - root.getBoundingClientRect().top) -
-          root.clientHeight / 2 +
-          el.offsetHeight / 2;
+          root.scrollTop + (rect.top - hostRect.top) - root.clientHeight / 2 + rect.height / 2;
         root.scrollTop = Math.max(0, Math.min(target, root.scrollHeight - root.clientHeight));
-        el.classList.add('ring-2', 'ring-red-500');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-red-500'), 700);
       }, isExpanded ? 0 : 60);
     },
-    [isExpanded, onToggleExpansion, segment.id]
+    [isExpanded, isRejected, onToggleExpansion, segment.id]
   );
 
   const reportBodyCaret = useCallback(() => {
@@ -487,7 +539,6 @@ function SegmentRow({
 
 
 
-  const isRejected = segment.status === 'rejected';
   /**
    * Marks saved with a past rejection, converted document-absolute → body-relative
    * for display. Clipped in case a split re-bounded the segment since. Mirrors the
@@ -507,16 +558,6 @@ function SegmentRow({
       .filter((s) => s.end > s.start)
       .sort((a, b) => a.start - b.start);
   }, [isRejected, segment.rejection?.marked_spans, segment.span_start, segment.text.length]);
-  /**
-   * What the body underlines: marks already saved on the rejection plus any the
-   * reviewer is drafting now. Merged so a saved mark is still anchored (and so
-   * chip navigation resolves) while a fresh rejection is being composed.
-   */
-  const bodyMarkedSpans = useMemo(
-    () => normalizeMarks([...savedRejectionMarks, ...rejectMarks]),
-    [savedRejectionMarks, rejectMarks]
-  );
-
   /**
    * Labels for a historical rejection's marks. Offsets are document-absolute and
    * may predate a split, so anything that no longer lands inside this segment is
@@ -645,11 +686,11 @@ function SegmentRow({
                       <li key={mark.start} className="flex max-w-full">
                         <button
                           type="button"
-                          onClick={() => scrollToMark(mark.start)}
-                          title={`Go to “${segment.text.slice(mark.start, mark.end)}” in the text`}
-                          className="flex min-w-0 items-center gap-1 rounded-full border border-red-300 bg-white px-2 py-0.5 text-left hover:bg-red-50"
+                          onClick={() => scrollToMark(mark.start, mark.end)}
+                          title={`Select “${segment.text.slice(mark.start, mark.end)}” in the text`}
+                          className="flex min-w-0 items-center gap-1 rounded-full border border-red-300 bg-white px-2 py-1 text-left hover:bg-red-50"
                         >
-                          <span className="min-w-0 truncate font-monlam text-xs text-gray-800">
+                          <span className="min-w-0 max-w-[16rem] truncate font-monlam text-xs leading-relaxed py-0.5 text-gray-800">
                             {segment.text.slice(mark.start, mark.end)}
                           </span>
                           {mark.note ? (
@@ -684,13 +725,13 @@ function SegmentRow({
                 style={{ backgroundColor: textBgColor }}
                 className="min-h-[8rem] max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap wrap-break-word p-3 font-monlam text-sm leading-normal text-gray-800 rounded-md border border-gray-200 cursor-text select-text outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
               >
+                {/* Empty unless rejected, so nothing is painted while drafting. */}
                 <SegmentHighlightedText
                   text={segment.text}
                   titleWords={highlightWords.titleWords}
                   authorWords={highlightWords.authorWords}
                   searchWords={searchWords}
-                  markedSpans={bodyMarkedSpans}
-                  quietMarks
+                  markedSpans={savedRejectionMarks}
                 />
               </div>
             ) : (
@@ -1025,8 +1066,8 @@ function SegmentRow({
                         <ul className="mt-1 flex flex-wrap gap-1.5">
                           {historyMarkLabels(item.marked_spans).map((mark) => (
                             <li key={mark.key} className="flex max-w-full">
-                              <span className="flex min-w-0 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5">
-                                <span className="min-w-0 truncate font-monlam text-xs text-gray-800">
+                              <span className="flex min-w-0 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-1">
+                                <span className="min-w-0 max-w-[16rem] truncate font-monlam text-xs leading-relaxed py-0.5 text-gray-800">
                                   {mark.label}
                                 </span>
                                 {mark.note ? (

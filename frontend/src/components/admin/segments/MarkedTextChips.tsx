@@ -7,7 +7,7 @@ import type { DraftMark } from './markedSpans';
 interface MarkedTextChipsProps {
   readonly text: string;
   readonly marks: DraftMark[];
-  readonly onScrollTo: (start: number) => void;
+  readonly onScrollTo: (start: number, end: number) => void;
   readonly onRemove: (start: number) => void;
   readonly onNoteChange: (start: number, note: string) => void;
   readonly onClearAll: () => void;
@@ -15,6 +15,20 @@ interface MarkedTextChipsProps {
 
 /** Longest chip label before truncating; keeps rows readable when marks are long. */
 const CHIP_MAX_CHARS = 24;
+
+/**
+ * Slicing by code unit can cut between a consonant and its subjoined letter or
+ * vowel sign, which renders as a broken glyph; cut at a tsek (syllable mark)
+ * instead, unless that would leave the chip near-empty.
+ */
+const TSEK = '་';
+function truncateLabel(label: string): string {
+  if (label.length <= CHIP_MAX_CHARS) return label;
+  const cut = label.slice(0, CHIP_MAX_CHARS);
+  const lastTsek = cut.lastIndexOf(TSEK);
+  const safe = lastTsek > CHIP_MAX_CHARS / 2 ? cut.slice(0, lastTsek + 1) : cut;
+  return `${safe}…`;
+}
 
 /**
  * Marking happens by selecting in the body itself. The body text is left
@@ -104,14 +118,15 @@ export function MarkedTextChips({
                   />
                 </span>
               ) : (
-                <span className="flex min-w-0 items-center gap-0.5 rounded-full border border-red-300 bg-white pl-2 pr-0.5 py-0.5">
+                /* py-1, not py-0.5: Tibetan vowel signs clip at the tighter padding. */
+                <span className="flex min-w-0 items-center gap-0.5 rounded-full border border-red-300 bg-white pl-2 pr-0.5 py-1">
                   <button
                     type="button"
-                    onClick={() => onScrollTo(mark.start)}
-                    title={`Go to “${label}” in the text`}
-                    className="min-w-0 truncate font-monlam text-xs text-gray-800 hover:underline"
+                    onClick={() => onScrollTo(mark.start, mark.end)}
+                    title={`Select “${label}” in the text`}
+                    className="min-w-0 truncate font-monlam text-xs leading-relaxed py-0.5 text-gray-800 hover:underline"
                   >
-                    {label.length > CHIP_MAX_CHARS ? `${label.slice(0, CHIP_MAX_CHARS)}…` : label}
+                    {truncateLabel(label)}
                   </button>
                   {mark.note ? (
                     <span
