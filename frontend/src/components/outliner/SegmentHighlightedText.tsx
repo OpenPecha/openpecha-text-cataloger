@@ -8,6 +8,15 @@ const HIGHLIGHT_CLASS = {
   search: 'highlighter rounded-sm bg-amber-200/90 box-decoration-clone',
   rejection:
     'segment-rejection-mark rounded-sm bg-red-200/90 box-decoration-clone transition-shadow',
+  /**
+   * Quiet variant: underline instead of a fill. A background would compete with
+   * the browser's own selection highlight (same visual channel), which is what
+   * made the old red marks unreadable while selecting. An underline leaves the
+   * glyphs and their background untouched, so a blue selection paints cleanly
+   * over marked text and both stay legible.
+   */
+  rejectionQuiet:
+    'segment-rejection-mark bg-transparent text-inherit underline decoration-wavy decoration-red-500 decoration-1 underline-offset-4 transition-shadow',
 } as const;
 
 export interface SegmentHighlightedTextProps {
@@ -23,6 +32,13 @@ export interface SegmentHighlightedTextProps {
    * Rendered as an outer layer so word highlights still apply inside a mark.
    */
   markedSpans?: { start: number; end: number }[];
+  /**
+   * Show marked spans as a wavy underline rather than a red fill, and drop the
+   * click-to-remove affordance. Keeps marks locatable in the text while leaving
+   * the native blue selection readable and the passage copyable; removal moves
+   * to the chips below.
+   */
+  quietMarks?: boolean;
   onMarkClick?: (start: number) => void;
   className?: string;
 }
@@ -74,6 +90,7 @@ export function SegmentHighlightedText({
   authorWords = [],
   searchWords = [],
   markedSpans,
+  quietMarks = false,
   onMarkClick,
   className,
 }: SegmentHighlightedTextProps) {
@@ -124,6 +141,20 @@ export function SegmentHighlightedText({
     <span className={className}>
       {spanRuns(text, markedSpans).map((run) =>
         run.marked ? (
+          quietMarks ? (
+            /**
+             * Underlined, not filled, and deliberately inert: no hover, cursor,
+             * or button role, so it reads as an annotation rather than a
+             * control. `data-mark-offset` still anchors chip navigation.
+             */
+            <span
+              key={`mk-${run.start}`}
+              data-mark-offset={run.start}
+              className={HIGHLIGHT_CLASS.rejectionQuiet}
+            >
+              {words(run.text)}
+            </span>
+          ) : (
           <mark
             key={`mk-${run.start}`}
             data-mark-offset={run.start}
@@ -147,6 +178,7 @@ export function SegmentHighlightedText({
           >
             {words(run.text)}
           </mark>
+          )
         ) : (
           <span key={`tx-${run.start}`}>{words(run.text)}</span>
         )

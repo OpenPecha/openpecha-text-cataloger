@@ -18,6 +18,7 @@ import {
   getSegmentRejectionHistory,
   rejectSegment,
   updateSegment,
+  type MarkedSpan,
   type OutlineSegmentStatus,
   type SegmentRejection,
 } from '@/api/outliner';
@@ -391,7 +392,14 @@ function SegmentRow({
     [onToggleExpansion, segment.id]
   );
 
-  /** Runs alongside `reportBodyCaret`, which handles the collapsed-caret case for image sync. */
+  /**
+   * Selecting text marks it as incorrect. The mark is shown only as a chip
+   * below — the body text is left unpainted so the native (blue) selection
+   * stays visible and Ctrl+C keeps working; reviewers paste the copied text
+   * into the title/author suggestion fields instead of retyping Tibetan.
+   *
+   * Runs alongside `reportBodyCaret`, which handles the collapsed-caret case for image sync.
+   */
   const handleBodySelectionMark = useCallback(() => {
     if (!canEditReview) return;
     const el = segmentBodyRef.current;
@@ -414,7 +422,6 @@ function SegmentRow({
     if (end <= start) return;
 
     setRejectMarks((prev) => normalizeMarks([...prev, { start, end }]));
-    selection.removeAllRanges();
   }, [canEditReview]);
 
   const removeMarkAt = useCallback((start: number) => {
@@ -481,6 +488,60 @@ function SegmentRow({
 
 
   const isRejected = segment.status === 'rejected';
+  /**
+   * Marks saved with a past rejection, converted document-absolute → body-relative
+   * for display. Clipped in case a split re-bounded the segment since. Mirrors the
+   * annotator view so a reviewer revisiting a rejected segment sees what was flagged.
+   */
+  const savedRejectionMarks = useMemo(() => {
+    const spans = segment.rejection?.marked_spans;
+    if (!isRejected || !spans?.length || segment.span_start == null) return [];
+    const base = segment.span_start;
+    const length = segment.text.length;
+    return spans
+      .map((s) => ({
+        start: Math.max(0, s.start - base),
+        end: Math.min(length, s.end - base),
+        note: s.note ?? undefined,
+      }))
+      .filter((s) => s.end > s.start)
+      .sort((a, b) => a.start - b.start);
+  }, [isRejected, segment.rejection?.marked_spans, segment.span_start, segment.text.length]);
+  /**
+   * What the body underlines: marks already saved on the rejection plus any the
+   * reviewer is drafting now. Merged so a saved mark is still anchored (and so
+   * chip navigation resolves) while a fresh rejection is being composed.
+   */
+  const bodyMarkedSpans = useMemo(
+    () => normalizeMarks([...savedRejectionMarks, ...rejectMarks]),
+    [savedRejectionMarks, rejectMarks]
+  );
+
+  /**
+   * Labels for a historical rejection's marks. Offsets are document-absolute and
+   * may predate a split, so anything that no longer lands inside this segment is
+   * shown by offset rather than dropped — the reviewer still learns a mark existed.
+   */
+  const historyMarkLabels = useCallback(
+    (spans: MarkedSpan[] | null | undefined) => {
+      if (!spans?.length || segment.span_start == null) return [];
+      const base = segment.span_start;
+      const length = segment.text.length;
+      return spans.map((s, i) => {
+        const start = s.start - base;
+        const end = s.end - base;
+        const inRange = start >= 0 && end <= length && end > start;
+        return {
+          key: `${s.start}-${s.end}-${i}`,
+          label: inRange
+            ? segment.text.slice(start, end)
+            : `— text moved (chars ${s.start}–${s.end}) —`,
+          note: s.note ?? undefined,
+        };
+      });
+    },
+    [segment.span_start, segment.text]
+  );
   const isApproved = segment.status === 'approved';
   const showApproveButton= selectedDocument?.status==='completed';
   const isSaving = statusMutation.isPending || rejectMutation.isPending || titleAuthorSaving || bdrcSaveMutation.isPending;
@@ -565,10 +626,46 @@ function SegmentRow({
             </div>
           </div>
 
-          {isRejected && segment.rejection?.reason?.trim() ? (
+          {/* Marks can exist without a comment, so either one shows the banner. */}
+          {isRejected && (segment.rejection?.reason?.trim() || savedRejectionMarks.length > 0) ? (
             <div className="rounded-md border border-red-200 bg-red-100/60 px-3 py-2 text-sm text-red-900">
-              <span className="font-semibold text-red-800">Rejection note: </span>
-              <span className="whitespace-pre-wrap">{segment.rejection.reason}</span>
+              {segment.rejection?.reason?.trim() ? (
+                <>
+                  <span className="font-semibold text-red-800">Rejection note: </span>
+                  <span className="whitespace-pre-wrap">{segment.rejection.reason}</span>
+                </>
+              ) : null}
+              {savedRejectionMarks.length > 0 ? (
+                <div className={segment.rejection?.reason?.trim() ? 'mt-2' : undefined}>
+                  <span className="font-semibold text-red-800">
+                    Marked as wrong ({savedRejectionMarks.length}):
+                  </span>
+                  <ul className="mt-1 flex flex-wrap gap-1.5">
+                    {savedRejectionMarks.map((mark) => (
+                      <li key={mark.start} className="flex max-w-full">
+                        <button
+                          type="button"
+                          onClick={() => scrollToMark(mark.start)}
+                          title={`Go to “${segment.text.slice(mark.start, mark.end)}” in the text`}
+                          className="flex min-w-0 items-center gap-1 rounded-full border border-red-300 bg-white px-2 py-0.5 text-left hover:bg-red-50"
+                        >
+                          <span className="min-w-0 truncate font-monlam text-xs text-gray-800">
+                            {segment.text.slice(mark.start, mark.end)}
+                          </span>
+                          {mark.note ? (
+                            <span
+                              className="max-w-[10rem] shrink truncate text-xs text-gray-500"
+                              title={mark.note}
+                            >
+                              — {mark.note}
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
           <div className="space-y-2">
@@ -592,8 +689,8 @@ function SegmentRow({
                   titleWords={highlightWords.titleWords}
                   authorWords={highlightWords.authorWords}
                   searchWords={searchWords}
-                  markedSpans={rejectMarks}
-                  onMarkClick={canEditReview ? removeMarkAt : undefined}
+                  markedSpans={bodyMarkedSpans}
+                  quietMarks
                 />
               </div>
             ) : (
@@ -922,6 +1019,30 @@ function SegmentRow({
                     <p className="whitespace-pre-wrap text-gray-900">
                       {item.reason?.trim() ? item.reason : '— No comment provided —'}
                     </p>
+                    {historyMarkLabels(item.marked_spans).length > 0 ? (
+                      <div className="mt-1.5">
+                        <span className="text-xs font-medium text-red-800">Marked as wrong:</span>
+                        <ul className="mt-1 flex flex-wrap gap-1.5">
+                          {historyMarkLabels(item.marked_spans).map((mark) => (
+                            <li key={mark.key} className="flex max-w-full">
+                              <span className="flex min-w-0 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5">
+                                <span className="min-w-0 truncate font-monlam text-xs text-gray-800">
+                                  {mark.label}
+                                </span>
+                                {mark.note ? (
+                                  <span
+                                    className="max-w-[10rem] shrink truncate text-xs text-gray-500"
+                                    title={mark.note}
+                                  >
+                                    — {mark.note}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })

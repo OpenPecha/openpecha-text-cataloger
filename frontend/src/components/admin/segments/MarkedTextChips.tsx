@@ -17,8 +17,9 @@ interface MarkedTextChipsProps {
 const CHIP_MAX_CHARS = 24;
 
 /**
- * Marking happens by selecting in the body itself — these chips are for
- * finding, annotating, and removing marks after the fact.
+ * Marking happens by selecting in the body itself. The body text is left
+ * unpainted (so it stays selectable and copyable), which makes these chips the
+ * only place marks are shown — click one to jump to it, ✕ to remove it.
  */
 export function MarkedTextChips({
   text,
@@ -43,7 +44,8 @@ export function MarkedTextChips({
   if (marks.length === 0) {
     return (
       <p className="mt-2 text-xs text-gray-500">
-        Select any incorrect text above to mark it for the annotator.
+        Select any incorrect text above to mark it for the annotator. Marked
+        passages are listed here; the text itself stays selectable so you can copy it.
       </p>
     );
   }
