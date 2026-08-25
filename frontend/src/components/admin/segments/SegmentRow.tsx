@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -393,21 +394,37 @@ function SegmentRow({
   );
 
   /**
-   * Selecting text marks it as incorrect. The selection is deliberately left in
-   * place so Ctrl+C keeps working — reviewers paste the copied text into the
-   * title/author suggestion fields instead of retyping Tibetan. Until the
-   * segment is rejected the marks live only in the chips below.
+   * Selecting text no longer marks it as wrong by itself — it just surfaces a
+   * "Reject" bubble next to the selection. The selection is deliberately left
+   * in place so Ctrl+C keeps working — reviewers paste the copied text into
+   * the title/author suggestion fields instead of retyping Tibetan. The
+   * offsets are captured now because clicking the bubble button collapses the
+   * live selection before the click handler runs.
    *
    * Runs alongside `reportBodyCaret`, which handles the collapsed-caret case for image sync.
    */
-  const handleBodySelectionMark = useCallback(() => {
+  const [selectionBubble, setSelectionBubble] = useState<{
+    x: number;
+    y: number;
+    start: number;
+    end: number;
+  } | null>(null);
+  const selectionBubbleRef = useRef<HTMLDivElement>(null);
+
+  const handleBodySelectionPreview = useCallback(() => {
     if (!canEditReview) return;
     const el = segmentBodyRef.current;
     if (!el) return;
     const selection = globalThis.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      setSelectionBubble(null);
+      return;
+    }
     const range = selection.getRangeAt(0);
-    if (!el.contains(range.commonAncestorContainer)) return;
+    if (!el.contains(range.commonAncestorContainer)) {
+      setSelectionBubble(null);
+      return;
+    }
 
     const offsetOf = (container: Node, nodeOffset: number) => {
       const pre = range.cloneRange();
@@ -419,10 +436,37 @@ function SegmentRow({
     const b = offsetOf(range.endContainer, range.endOffset);
     const start = Math.min(a, b);
     const end = Math.max(a, b);
-    if (end <= start) return;
+    if (end <= start) {
+      setSelectionBubble(null);
+      return;
+    }
 
-    setRejectMarks((prev) => normalizeMarks([...prev, { start, end }]));
+    const rect = range.getBoundingClientRect();
+    setSelectionBubble({ x: rect.left + rect.width / 2, y: rect.top, start, end });
   }, [canEditReview]);
+
+  const confirmSelectionReject = useCallback(() => {
+    setSelectionBubble((current) => {
+      if (!current) return null;
+      const { start, end } = current;
+      setRejectMarks((prev) => normalizeMarks([...prev, { start, end }]));
+      return null;
+    });
+  }, []);
+
+  // Dismiss the bubble on any click outside it; a new drag inside the body is
+  // left alone so the mouseup handler above can replace it instead of racing it.
+  useEffect(() => {
+    if (!selectionBubble) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (selectionBubbleRef.current?.contains(target)) return;
+      if (segmentBodyRef.current?.contains(target)) return;
+      setSelectionBubble(null);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [selectionBubble]);
 
   const removeMarkAt = useCallback((start: number) => {
     setRejectMarks((prev) => prev.filter((m) => m.start !== start));
@@ -525,6 +569,7 @@ function SegmentRow({
   useEffect(() => {
     if (!isExpanded) {
       onSegmentBodyCaretChange?.(segment.id, null);
+      setSelectionBubble(null);
     }
   }, [isExpanded, segment.id, onSegmentBodyCaretChange]);
 
@@ -607,6 +652,24 @@ function SegmentRow({
             : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100/80'
       }`}
     >
+      {selectionBubble &&
+        createPortal(
+          <div
+            ref={selectionBubbleRef}
+            className="fixed z-[9999] -translate-x-1/2 -translate-y-full pb-2"
+            style={{ left: selectionBubble.x, top: selectionBubble.y }}
+          >
+            <button
+              type="button"
+              onClick={confirmSelectionReject}
+              className="flex items-center gap-1 rounded-full bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-lg cursor-pointer hover:bg-red-700"
+            >
+              <X className="h-3 w-3 shrink-0" aria-hidden />
+              Reject
+            </button>
+          </div>,
+          document.body
+        )}
       <div className="flex items-start gap-3">
         <div className="shrink-0 flex flex-col items-center gap-2">
           <button
@@ -718,7 +781,7 @@ function SegmentRow({
                 aria-label="Segment text (read-only; click to sync volume image)"
                 onMouseUp={() => {
                   reportBodyCaret();
-                  handleBodySelectionMark();
+                  handleBodySelectionPreview();
                 }}
                 onFocus={reportBodyCaret}
                 onBlur={() => onSegmentBodyCaretChange?.(segment.id, null)}
