@@ -27,6 +27,7 @@ const AlignmentWorkstationLazy = lazy(() =>
 );
 const OutlineDashboardLazy = lazy(() => import('@/features/outliner').then((m) => ({ default: m.Dashboard })));
 const OutlinerWorkspaceLazy = lazy(() => import('@/features/outliner').then((m) => ({ default: m.Workspace })));
+const OutlinerMyStatsLazy = lazy(() => import('@/features/outliner').then((m) => ({ default: m.MyStats })));
 const OutlinerAdminDashboardLazy = lazy(() => import('@/features/outliner').then((m) => ({ default: m.AdminDashboard })));
 const OutlinerAdminDocumentLazy = lazy(() => import('@/features/outliner').then((m) => ({ default: m.AdminDocument })));
 const OutlinerAdminSegmentLazy = lazy(() => import('@/features/outliner').then((m) => ({ default: m.AdminSegment })));
@@ -140,6 +141,12 @@ function App() {
           <Route path="/outliner" element={
             <ProtectedRoute>
               <OutlineDashboardLazy />
+            </ProtectedRoute>
+          } />
+          {/* Before /outliner/:documentId, or "my-stats" is captured as a document id. */}
+          <Route path="/outliner/my-stats" element={
+            <ProtectedRoute>
+              <OutlinerMyStatsLazy />
             </ProtectedRoute>
           } />
           <Route path="/outliner/:documentId" element={

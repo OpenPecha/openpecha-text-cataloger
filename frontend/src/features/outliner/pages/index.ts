@@ -1,5 +1,6 @@
 export { default as Workspace } from './Workspace'
 export { default as Dashboard } from './Dashboard'
+export { default as MyStats } from './MyStats'
 export { default as AdminDashboard } from './AdminDashboard'
 export { default as AdminDocument } from './AdminDocument'
 export { default as AdminSegment } from './AdminSegment'

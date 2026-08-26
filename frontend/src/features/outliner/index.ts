@@ -5,6 +5,7 @@ export * from './hooks'
 export {
   Workspace,
   Dashboard,
+  MyStats,
   AdminDashboard,
   AdminDocument,
   AdminSegment,

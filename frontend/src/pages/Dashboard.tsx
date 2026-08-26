@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, Calendar, BarChart3, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { FileText, Calendar, BarChart3, ScatterChart, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { SimplePagination } from '@/components/ui/simple-pagination';
 import { Input } from '@/components/ui/input';
 import { useUser } from '@/hooks/useUser';
@@ -204,14 +204,19 @@ const OutlinerUpload: React.FC = () => {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-3">
-       
-                <Button 
+            <Button asChild variant="outline">
+              <Link to="/outliner/my-stats">
+                <ScatterChart className="mr-2 h-4 w-4" aria-hidden />
+                My stats
+              </Link>
+            </Button>
+                <Button
               onClick={assignWork}
               disabled={assignDisabled}
             >
               {assignWorkMutation.isPending ? 'Assigning...' : 'Assign me a work'}
             </Button>
-            
+
           </div>
         </div>
 
