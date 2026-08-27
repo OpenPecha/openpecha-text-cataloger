@@ -178,6 +178,8 @@ function SegmentCard({
   // Report the click/caret offset within the segment body so the image panel can
   // follow the reader into later pages of a multi-page segment (mirrors the
   // reviewer SegmentRow: documentCharIndex = span_start + offset).
+  // Not cleared on blur: clicking the zoomable image blurs the body, and dropping
+  // the offset would snap the panel back to span_start. Collapse/unmount clear it.
   const reportBodyCaret = useCallback(() => {
     const el = segmentBodyRef.current;
     if (!el) return;
@@ -300,7 +302,7 @@ function SegmentCard({
                 aria-label="Segment text (read-only; click to sync volume image)"
                 onMouseUp={reportBodyCaret}
                 onFocus={reportBodyCaret}
-                onBlur={() => onBodyCaretChange(segment.id, null)}
+                // onBlur={() => onBodyCaretChange(segment.id, null)}
                 style={{ backgroundColor: textBgColor }}
                 className="min-h-[8rem] max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap wrap-break-word p-3 font-monlam text-sm leading-normal text-gray-800 rounded-md border border-gray-200 cursor-text select-text outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20"
               >
