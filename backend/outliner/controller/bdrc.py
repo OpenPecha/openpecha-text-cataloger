@@ -34,6 +34,16 @@ from outliner.controller.sanity_check import (
     run_sanity_check,
     segments_for_sanity_check,
 )
+from outliner.models.segment_enums import SegmentLabels
+
+# BDRC part_type derived from the annotator's segment label. Falls back to the previous
+# wa_id-based guess (see _push_document_segments_to_bdrc) for segments left unlabeled.
+_LABEL_TO_PART_TYPE = {
+    SegmentLabels.TEXT: "text",
+    SegmentLabels.FRONT_MATTER: "editorial",
+    SegmentLabels.BACK_MATTER: "editorial",
+    SegmentLabels.TOC: "toc",
+}
 
 # BDRC bulk sync progress: append-only log next to backend package (backend/sync_status.txt).
 _SYNC_STATUS_LOG_PATH = Path(__file__).resolve().parents[2] / "sync_status.txt"
@@ -124,6 +134,7 @@ async def _push_document_segments_to_bdrc(
         segment_author = segment.reviewer_author if segment.reviewer_author is not None else (segment.author or "")
         mw_id = f'{volume["mw_id"]}_{segment.id}'
         wa_id = segment.title_bdrc_id or ''
+        part_type = _LABEL_TO_PART_TYPE.get(segment.label, "text" if wa_id != '' else "editorial")
         segment_inputs.append(SegmentInput(
             cstart=segment_start,
             cend=segment_end,
@@ -131,7 +142,7 @@ async def _push_document_segments_to_bdrc(
             author_name_bo=segment_author,
             mw_id=mw_id,
             wa_id=wa_id,
-            part_type="text" if wa_id != '' else "editorial"
+            part_type=part_type
         ))
     result = await update_volume(
         volume_id,

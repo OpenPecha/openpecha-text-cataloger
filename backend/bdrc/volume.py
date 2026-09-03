@@ -21,7 +21,7 @@ class SegmentInput(BaseModel):
     author_name_bo: Optional[str] = None
     mw_id: Optional[str] = None
     wa_id: Optional[str] = None
-    part_type: Optional[Literal["text", "editorial"]] = None
+    part_type: Optional[Literal["text", "editorial", "toc"]] = None
 
 
 class VolumeInput(BaseModel):
