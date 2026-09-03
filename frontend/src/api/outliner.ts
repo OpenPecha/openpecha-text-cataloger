@@ -1041,6 +1041,46 @@ export const getDashboardStats = async (
   return handleApiResponse(response);
 };
 
+/** One document behind the "Annotated (pending review)" dashboard stat. */
+export interface AnnotatedPendingReviewDocumentRow {
+  document_id: string;
+  filename: string;
+  annotator_user_id: string | null;
+  annotator_name: string;
+  /** Segments on this document with title/author set and status 'checked'. */
+  segment_count: number;
+  updated_at: string;
+}
+
+export interface AnnotatedPendingReviewDocumentsResponse {
+  rows: AnnotatedPendingReviewDocumentRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
+/** GET …/dashboard/annotated-pending-review-documents — drill-down for the pipeline overview stat, paginated. */
+export const getAnnotatedPendingReviewDocuments = async (
+  page: number = 1,
+  pageSize: number = 30,
+  user_id?: string,
+  start_date?: string,
+  end_date?: string,
+): Promise<AnnotatedPendingReviewDocumentsResponse> => {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (user_id) params.append('user_id', user_id);
+  if (start_date) params.append('start_date', start_date);
+  if (end_date) params.append('end_date', end_date);
+  const response = await outlinerFetch(
+    `${OUTLINER_BASE_URL}/dashboard/annotated-pending-review-documents?${params.toString()}`,
+  );
+  return handleApiResponse(response);
+};
+
 export type AnnotatorWeeklyBucketBy = 'reviewed' | 'annotated';
 
 export interface AnnotatorWeeklyQualityRow {

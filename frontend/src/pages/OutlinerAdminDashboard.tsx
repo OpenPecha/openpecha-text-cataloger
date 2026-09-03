@@ -25,11 +25,12 @@ function OutlinerAdminDashboard() {
     startDate: startDate ? dataParse(startDate) : undefined,
     endDate: endDate ? dataParse(endDate) : undefined,
   };
-  const { stats, isLoading } = useDashboardStats({
+  const appliedFilters = {
     userId: searchParams.get('annotator') || undefined,
     startDate: startDate ? new Date(startDate).toISOString() : undefined,
     endDate: endDate ? `${endDate}T23:59:59` : undefined,
-  });
+  };
+  const { stats, isLoading } = useDashboardStats(appliedFilters);
 
   
   const [filters, setFilters] = useState<DashboardStatsFilters>(initialFilters)
@@ -80,6 +81,7 @@ function OutlinerAdminDashboard() {
         stats={stats ?? null}
         isLoading={isLoading}
         dashboardDateRange={{ start: startDate, end: endDate }}
+        dashboardFilters={appliedFilters}
       />
     </div>
   );

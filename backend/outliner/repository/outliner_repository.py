@@ -8,6 +8,7 @@ from outliner.repository.analytics import (
     get_annotator_performance_breakdown,
     get_annotator_weekly_quality,
     get_dashboard_stats,
+    list_annotated_pending_review_documents,
 )
 from outliner.repository.document import (
     bdrc_modified_by_from_document,

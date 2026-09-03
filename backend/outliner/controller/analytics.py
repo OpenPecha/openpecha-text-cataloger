@@ -54,3 +54,32 @@ def get_dashboard_stats(
     return outliner_repo.get_dashboard_stats(
         db, user_id=user_id, start_date=start_date, end_date=end_date
     )
+
+
+def list_annotated_pending_review_documents(
+    db: Session,
+    user_id: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    page: int = 1,
+    page_size: int = 30,
+) -> Dict[str, Any]:
+    """Documents behind the dashboard's "Annotated (pending review)" stat, paginated."""
+    page = max(1, page)
+    page_size = max(1, min(page_size, 100))
+    skip = (page - 1) * page_size
+    rows, total = outliner_repo.list_annotated_pending_review_documents(
+        db,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        skip=skip,
+        limit=page_size,
+    )
+    return {
+        "rows": rows,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "has_next": skip + len(rows) < total,
+    }

@@ -1,6 +1,6 @@
 """Cross-table aggregates for dashboard and annotator performance."""
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import Session
@@ -762,6 +762,91 @@ def get_dashboard_stats(
     }
     raw_stats["presentation"] = build_dashboard_presentation(db, raw_stats)
     return raw_stats
+
+
+def list_annotated_pending_review_documents(
+    db: Session,
+    user_id: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    skip: int = 0,
+    limit: int = 30,
+) -> Tuple[List[Dict[str, Any]], int]:
+    """
+    Per-document drill-down behind the "Annotated (pending review)" dashboard stat.
+
+    Same scope as ``annotated_segments`` in ``get_dashboard_stats``: segments with a
+    title or author set, status == "checked", on documents that are not skipped or
+    deleted. Grouped by document, newest updated first.
+    """
+    has_title_or_author = or_(
+        and_(OutlinerSegment.title.isnot(None), OutlinerSegment.title != ""),
+        and_(OutlinerSegment.author.isnot(None), OutlinerSegment.author != ""),
+    )
+    filters = [
+        has_title_or_author,
+        OutlinerSegment.status == "checked",
+        OutlinerDocument.status != "skipped",
+        (OutlinerDocument.status != "deleted") | (OutlinerDocument.status.is_(None)),
+    ]
+    if user_id:
+        filters.append(OutlinerDocument.user_id == user_id)
+    if start_date:
+        filters.append(OutlinerDocument.created_at >= start_date)
+    if end_date:
+        filters.append(OutlinerDocument.created_at <= end_date)
+
+    join_clause = OutlinerSegment.document_id == OutlinerDocument.id
+
+    total = (
+        db.query(func.count(func.distinct(OutlinerSegment.document_id)))
+        .join(OutlinerDocument, join_clause)
+        .filter(*filters)
+        .scalar()
+        or 0
+    )
+
+    rows = (
+        db.query(
+            OutlinerSegment.document_id,
+            OutlinerDocument.filename,
+            OutlinerDocument.user_id,
+            OutlinerDocument.updated_at,
+            func.count(OutlinerSegment.id).label("segment_count"),
+        )
+        .join(OutlinerDocument, join_clause)
+        .filter(*filters)
+        .group_by(
+            OutlinerSegment.document_id,
+            OutlinerDocument.filename,
+            OutlinerDocument.user_id,
+            OutlinerDocument.updated_at,
+        )
+        .order_by(OutlinerDocument.updated_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    annotator_ids = {row.user_id for row in rows if row.user_id}
+    names: Dict[str, str] = {}
+    if annotator_ids:
+        for uid, name in db.query(User.id, User.name).filter(User.id.in_(annotator_ids)).all():
+            clean = (name or "").strip()
+            names[str(uid)] = clean if clean else str(uid)
+
+    doc_rows = [
+        {
+            "document_id": row.document_id,
+            "filename": (row.filename or "").strip() or "(untitled)",
+            "annotator_user_id": row.user_id,
+            "annotator_name": names.get(str(row.user_id), "Unassigned") if row.user_id else "Unassigned",
+            "segment_count": int(row.segment_count),
+            "updated_at": row.updated_at,
+        }
+        for row in rows
+    ]
+    return doc_rows, int(total)
 
 
 _WEEKLY_BUCKET_FIELDS = frozenset({"annotated", "reviewed"})

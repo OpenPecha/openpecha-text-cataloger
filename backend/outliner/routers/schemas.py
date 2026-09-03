@@ -359,6 +359,25 @@ class MyReviewedSegmentsResponse(BaseModel):
     has_next: bool = False
 
 
+class AnnotatedPendingReviewDocumentRow(BaseModel):
+    document_id: str
+    filename: str
+    annotator_user_id: Optional[str] = None
+    annotator_name: str
+    segment_count: int = Field(
+        description="Segments on this document with title/author set and status 'checked'.",
+    )
+    updated_at: datetime
+
+
+class AnnotatedPendingReviewDocumentsResponse(BaseModel):
+    rows: List[AnnotatedPendingReviewDocumentRow] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    page_size: int = 30
+    has_next: bool = False
+
+
 class DocumentListResponse(BaseModel):
     id: str
     filename: Optional[str] = None

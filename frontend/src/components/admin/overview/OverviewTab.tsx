@@ -28,6 +28,7 @@ import { Bar, Doughnut, Line } from 'react-chartjs-2'
 import type { DashboardChartSeries, DashboardStats } from '@/api/outliner'
 import { useActiveBatch } from '@/hooks'
 import AnnotatorQualityScatter from './AnnotatorQualityScatter'
+import AnnotatedPendingReviewDialog from './AnnotatedPendingReviewDialog'
 
 ChartJS.register(
   CategoryScale,
@@ -47,6 +48,15 @@ interface OverviewTabProps {
   readonly isLoading?: boolean
   /** HTML date inputs from the admin dashboard; shown in reviewer activity empty-state copy. */
   readonly dashboardDateRange?: { readonly start: string; readonly end: string }
+  /**
+   * Same annotator/date-range filters actually applied to `stats` (ISO dates), so the
+   * "Annotated (pending review)" drill-down list matches the number that was clicked.
+   */
+  readonly dashboardFilters?: {
+    readonly userId?: string
+    readonly startDate?: string
+    readonly endDate?: string
+  }
 }
 
 /** Aligned with tailwind.css Tibetan-inspired admin tokens (burgundy / gold / teal). */
@@ -558,11 +568,13 @@ function OverviewTab({
   stats,
   isLoading,
   dashboardDateRange,
+  dashboardFilters,
 }: OverviewTabProps) {
   const [annotatorQualityView, setAnnotatorQualityView] = useState<
     'chart' | 'scatter' | 'table'
   >('chart')
   const [reviewerActivityView, setReviewerActivityView] = useState<'chart' | 'table'>('chart')
+  const [pendingReviewDialogOpen, setPendingReviewDialogOpen] = useState(false)
   const { data: activeBatchData, setActiveBatch, isUpdating: activeBatchUpdating } = useActiveBatch()
   const activeBatchId = activeBatchData?.batch_id ?? null
 
@@ -864,7 +876,14 @@ return (
             <div className="space-y-2 border-t border-stone-100 pt-3 text-xs">
               <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">Segments with title/author</p>
               <PipelineStatRow dot={TEAL}    label="Annotating"           value={stats.unchecked_segments_with_title_or_author ?? 0} total={stats.segments_with_title_or_author} />
-              <PipelineStatRow dot={GOLD}    label="Annotated (pending review)" value={stats.annotated_segments}                      total={stats.segments_with_title_or_author} />
+              <PipelineStatRow
+                dot={GOLD}
+                label="Annotated (pending review)"
+                value={stats.annotated_segments}
+                total={stats.segments_with_title_or_author}
+                hint="click to view documents"
+                onClick={() => setPendingReviewDialogOpen(true)}
+              />
               <PipelineStatRow dot={EMERALD} label="Reviewed (in period)" value={stats.reviewed_segments}                            total={stats.segments_with_title_or_author} hint="approved in selected date range" />
               <PipelineStatRow dot={RED}     label="In rejected state"    value={stats.rejected_segments_with_title_or_author ?? 0}  total={stats.segments_with_title_or_author} hint="current status, not date-filtered" />
             </div>
@@ -1468,6 +1487,14 @@ return (
           )}
         </div>
       </MotionSection>
+
+      <AnnotatedPendingReviewDialog
+        open={pendingReviewDialogOpen}
+        onOpenChange={setPendingReviewDialogOpen}
+        userId={dashboardFilters?.userId}
+        startDate={dashboardFilters?.startDate}
+        endDate={dashboardFilters?.endDate}
+      />
     </div>
   )
 }
@@ -1517,23 +1544,32 @@ function PipelineBar({
   )
 }
 
-/** Single row in a pipeline breakdown list. */
+/** Single row in a pipeline breakdown list. Clickable (button) when `onClick` is given. */
 function PipelineStatRow({
   dot,
   label,
   value,
   total,
   hint,
+  onClick,
 }: {
   dot: string
   label: string
   value: number
   total: number
   hint?: string
+  onClick?: () => void
 }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0
+  const Wrapper = onClick ? 'button' : 'div'
   return (
-    <div className="flex items-center gap-2">
+    <Wrapper
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 ${
+        onClick ? 'rounded-md text-left transition-colors hover:bg-stone-100/80' : ''
+      }`}
+    >
       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
       <span className="min-w-0 flex-1 truncate text-muted-foreground" title={hint}>
         {label}
@@ -1545,6 +1581,6 @@ function PipelineStatRow({
       <span className="w-9 shrink-0 text-right tabular-nums text-muted-foreground/70">
         {pct}%
       </span>
-    </div>
+    </Wrapper>
   )
 }

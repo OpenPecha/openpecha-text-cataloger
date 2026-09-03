@@ -14,6 +14,7 @@ from outliner.controller.active_batch import (
 from outliner.controller.outliner import (
     get_annotator_weekly_quality as get_annotator_weekly_quality_ctrl,
     get_dashboard_stats as get_dashboard_stats_ctrl,
+    list_annotated_pending_review_documents as list_annotated_pending_review_documents_ctrl,
 )
 from outliner.controller.segment_review import (
     get_reviewer_stats as get_reviewer_stats_ctrl,
@@ -26,6 +27,7 @@ from outliner.repository.statistics import (
 from .schemas import (
     ActiveBatchResponse,
     ActiveBatchUpdate,
+    AnnotatedPendingReviewDocumentsResponse,
     AnnotatorApprovedRow,
     AnnotatorWeeklyQualityResponse,
     AnnotatorWeeklyQualityRow,
@@ -47,6 +49,34 @@ async def get_dashboard_stats(
 ):
     """Return aggregate stats for the admin overview dashboard."""
     return get_dashboard_stats_ctrl(db, user_id=user_id, start_date=start_date, end_date=end_date)
+
+
+@router.get(
+    "/dashboard/annotated-pending-review-documents",
+    response_model=AnnotatedPendingReviewDocumentsResponse,
+)
+async def annotated_pending_review_documents(
+    user_id: Optional[str] = Query(None, description="Filter by annotator user ID"),
+    start_date: Optional[datetime] = Query(None, description="Start of date range (ISO format)"),
+    end_date: Optional[datetime] = Query(None, description="End of date range (ISO format)"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(30, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """
+    Documents behind the "Annotated (pending review)" stat on the overview dashboard.
+
+    Same scope as ``annotated_segments`` in ``/dashboard/stats``: segments with a
+    title/author set and status 'checked', on documents that aren't skipped or deleted.
+    """
+    return list_annotated_pending_review_documents_ctrl(
+        db,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/dashboard/annotator-weekly-quality", response_model=AnnotatorWeeklyQualityResponse)
