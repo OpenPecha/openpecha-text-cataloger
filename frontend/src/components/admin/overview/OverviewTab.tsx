@@ -1561,13 +1561,25 @@ function PipelineStatRow({
   onClick?: () => void
 }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0
-  const Wrapper = onClick ? 'button' : 'div'
   return (
-    <Wrapper
-      type={onClick ? 'button' : undefined}
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
       className={`flex w-full items-center gap-2 ${
-        onClick ? 'rounded-md text-left transition-colors hover:bg-stone-100/80' : ''
+        onClick
+          ? 'cursor-pointer rounded-md transition-colors hover:bg-stone-100/80'
+          : ''
       }`}
     >
       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
@@ -1581,6 +1593,6 @@ function PipelineStatRow({
       <span className="w-9 shrink-0 text-right tabular-nums text-muted-foreground/70">
         {pct}%
       </span>
-    </Wrapper>
+    </div>
   )
 }
