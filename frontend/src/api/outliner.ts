@@ -661,21 +661,85 @@ export const approveOutlinerDocument = async (
   return handleApiResponse(response);
 };
 
+export interface SanityCheckFinding {
+  error_type: string;
+  char_span: { start: number; end: number };
+  confidence: number;
+  evidence: string;
+  rule_ids: string[];
+  severity: 'blocker' | 'advisory';
+  segment_id: string;
+}
+
+export interface SanityCheckReport {
+  volume_id?: string | null;
+  flagged_count: number;
+  blocker_count: number;
+  advisory_count: number;
+  findings: SanityCheckFinding[];
+}
+
+export interface SubmitToBdrcResult {
+  success: boolean;
+  requires_confirmation?: boolean;
+  sanity_report?: SanityCheckReport;
+}
+
+export interface SanityCheckSegmentInput {
+  id: string;
+  start: number;
+  end: number;
+  label?: string | null;
+}
+
+/**
+ * Run the segmentation sanity check against segment spans supplied by the caller, without
+ * submitting anything. `segments` should be the spans/labels currently shown in the editor
+ * (not re-read from the DB), so the check reflects exactly what the annotator sees. Used to
+ * show all flagged issues up front, before the annotator decides whether to fix segments or
+ * submit anyway.
+ */
+export const checkDocumentSanity = async (
+  documentId: string,
+  segments: SanityCheckSegmentInput[],
+  signal?: AbortSignal
+): Promise<SanityCheckReport> => {
+  const response = await outlinerFetch(
+    `${OUTLINER_BASE_URL}/documents/${documentId}/sanity-check`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ segments }),
+      signal,
+    }
+  );
+  return handleApiResponse(response);
+};
+
 /**
  * Push outline to BDRC OTAPI with status in_review and set document status to completed
  * (single round-trip). `isComplete` is false when the scanned volume is missing pages at
  * the beginning and/or the end; it is pushed to BDRC as the volume-level `complete` flag.
+ *
+ * The submission first runs through a segmentation sanity check. If it flags anything and
+ * `ignoreSanityWarnings` isn't set, the backend holds the submission and returns
+ * `{ success: false, sanity_report }` instead of submitting, so the caller can show the
+ * warnings and let the annotator resubmit with `ignoreSanityWarnings: true` to proceed anyway.
  */
 export const submitDocumentToBdrcInReview = async (
   documentId: string,
-  isComplete: boolean = true
-): Promise<Record<string, unknown>> => {
+  isComplete: boolean = true,
+  ignoreSanityWarnings: boolean = false
+): Promise<SubmitToBdrcResult> => {
   const response = await outlinerFetch(
     `${OUTLINER_BASE_URL}/documents/${documentId}/submit-bdrc-in-review`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_complete: isComplete }),
+      body: JSON.stringify({
+        is_complete: isComplete,
+        ignore_sanity_warnings: ignoreSanityWarnings,
+      }),
     }
   );
   return handleApiResponse(response);

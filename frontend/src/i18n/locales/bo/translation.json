@@ -574,7 +574,16 @@
       "skipFailed": "ཡིག་ཆ་བསྐྱུར་མ་ཐུབ།: {{message}}",
       "confirmSkip": "ཡིག་ཆ་འདི་བསྐྱུར་རྒྱུ་ངེས་སམ།",
       "submitNotSaved": "ཆ་ཤས་{{count}} ད་དུང་ཉར་མེད།",
-      "submitNotSaved_plural": "ཆ་ཤས་{{count}} ད་དུང་ཉར་མེད།"
+      "submitNotSaved_plural": "ཆ་ཤས་{{count}} ད་དུང་ཉར་མེད།",
+      "sanityCheck": {
+        "button": "འཇོག་ཚུལ་ཞིབ་བཤེར།",
+        "buttonTitle": "ད་ལྟའི་དབྱེ་ཚན་ལ་འཇོག་ཚུལ་ཞིབ་བཤེར་བྱེད།",
+        "dialogTitle": "འཇོག་ཚུལ་ཞིབ་བཤེར།",
+        "noIssuesTitle": "སྐྱོན་མ་རྙེད།",
+        "noIssuesDescription": "ཞིབ་བཤེར་གྱིས་དབྱེ་ཚན་སྐྱོན་གང་ཡང་མ་རྙེད།",
+        "resultsDescription": "གནད་སྐྱོན་{{blockerCount}} དང་བསམ་འཆར་{{advisoryCount}} རྙེད་སོང་།",
+        "checkFailed": "ཞིབ་བཤེར་བྱེད་མ་ཐུབ། སླར་ཚོད་ལྟ་གནང་རོགས།"
+      }
     },
     "expand": {
       "expandAll": "ཡོངས་ཁ་ཕྱེ།",
@@ -596,7 +605,24 @@
       "confirmTitle": "བསྐྱར་ཞིབ་ཏུ་བཏང་།",
       "confirmDescription": "པོད་འདི་བསྐྱར་ཞིབ་ཏུ་གཏོང་བར་བྱ།",
       "incompleteLabel": "པོད་འདི་ཚང་མེད།",
-      "incompleteHint": "པར་གཞིའི་མགོ་དང་མཇུག་ཏུ་ཤོག་ངོས་ཆད་ཡོད།"
+      "incompleteHint": "པར་གཞིའི་མགོ་དང་མཇུག་ཏུ་ཤོག་ངོས་ཆད་ཡོད།",
+      "sanityWarning": {
+        "title": "དབྱེ་ཚན་སྐྱོན་རྙེད་སོང་།",
+        "description": "ཞིབ་བཤེར་གྱིས་པོད་འདིའི་དབྱེ་ཚན་ནང་ལ་གནད་སྐྱོན་{{blockerCount}} དང་བསམ་འཆར་{{advisoryCount}} རྙེད་སོང་། སླར་ལོག་ནས་དབྱེ་ཚན་ཞུ་དག་བྱེད་ཆོག་ལ། ཡང་ན་ད་དུང་བཏང་ཆོག།",
+        "checking": "དབྱེ་ཚན་ཞིབ་བཤེར་བྱེད་བཞིན་པ…",
+        "checkFailed": "ཞིབ་བཤེར་བྱེད་མ་ཐུབ། འོན་ཀྱང་བཏང་ཆོག།",
+        "goBack": "སླར་ལོག",
+        "submitAnyway": "ད་དུང་བཏང་།",
+        "charSpan": "ཡིག་འབྲུ་ {{start}}–{{end}}",
+        "severity": {
+          "blocker": "གནད་སྐྱོན་",
+          "advisory": "བསམ་འཆར་"
+        },
+        "errorType": {
+          "over_segmentation": "དབྱེ་ཚན་མང་དྲགས།",
+          "under_segmentation": "དབྱེ་ཚན་ཉུང་དྲགས།"
+        }
+      }
     },
     "upload": {
       "uploading": "ཡིག་ཆ་མཐོ་འདོན་བཞིན་པ..."

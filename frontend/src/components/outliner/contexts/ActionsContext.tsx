@@ -17,6 +17,7 @@ interface ActionsContextValue {
   onLoadNewFile: () => void
   onSegmentStatusUpdate?: (segmentId: string, status: 'checked' | 'unchecked') => Promise<void>
   onResetSegments?: () => void
+  onCheckSanity: () => void
   expandedSegmentIds: readonly string[]
   toggleSegmentExpanded: (segmentId: string) => void
   isAllSegmentsExpanded: boolean

@@ -17,7 +17,7 @@ import { findPhraseDocSpan } from '@/utils/findPhraseDocSpan';
 import { useOutlinerDocument } from '@/hooks/useOutlinerDocument';
 import type { SegmentUpdateRequest } from '@/api/outliner';
 import { toast } from 'sonner';
-import { User } from 'lucide-react';
+import { User, AlertCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { ListImperativeAPI } from 'react-window';
 import { AnnotationMetadataTab } from './AnnotationMetadataTab';
@@ -27,6 +27,8 @@ import {
   type AnnotationMetadataContextValue,
 } from './contexts/AnnotationMetadataContext';
 import type { AnnotationSidebarTab } from './annotationSidebarTab';
+import { useDocument } from './contexts';
+import { sanityFindingsTooltip } from './SanityCheckWarningContent';
 
 export type { Title, Author, FormDataType } from './annotationSidebarFormTypes';
 export type { AnnotationSidebarTab } from './annotationSidebarTab';
@@ -45,6 +47,10 @@ const OutlineSegmentRow = memo(function OutlineSegmentRow({
   onNavigate,
 }: OutlineSegmentRowProps) {
   const { t } = useTranslation();
+  const { sanityFindingsBySegmentId } = useDocument();
+  const findings = sanityFindingsBySegmentId.get(seg.id);
+  const hasFindings = Boolean(findings && findings.length > 0);
+  const hasBlockerFinding = Boolean(findings?.some((finding) => finding.severity === 'blocker'));
   const preview =
     seg.title ? seg.title : seg.text.length > 80 ? `${seg.text.slice(0, 80)}...` : seg.text;
   const showMetaRow = Boolean(seg.label || seg.title || seg.author);
@@ -74,6 +80,11 @@ const OutlineSegmentRow = memo(function OutlineSegmentRow({
         >
           {displayIndex + 1}
         </span>
+        {hasFindings && findings && (
+          <span title={sanityFindingsTooltip(findings, t)} className="shrink-0 mt-0.5">
+            <AlertCircle className={`h-4 w-4 ${hasBlockerFinding ? 'text-red-500' : 'text-amber-500'}`} />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <p
             className={`text-sm leading-snug font-monlam ${

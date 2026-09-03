@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import {  Merge, AlertCircle, Loader2 } from 'lucide-react'
 import type { TextSegment, SegmentLabel } from './types'
 import { SegmentTextContent } from './SegmentTextContent'
+import { sanityFindingsTooltip } from './SanityCheckWarningContent'
 import { useDocument,useCursor, useActions } from './contexts'
 import { SplitMenu } from './SplitMenu'
 import { BubbleMenu } from './BubbleMenu'
@@ -311,8 +312,11 @@ const SegmentItem: React.FC<SegmentItemProps> = ({
             )}
           </div>
           <div className={`flex-1 relative ${isApproved && !isRejected ? 'pointer-events-none' : ''}`}>
-          <div className='absolute right-2'>
+          <div className='absolute right-2 flex items-center gap-1.5'>
 
+          <SanityFindingIndicator
+          segment={segment}
+          />
           <AlertMessage
           segment={segment}
           />
@@ -461,6 +465,19 @@ const SegmentLabelSelector = ({
     </Select>
    
   </>
+  )
+}
+
+const SanityFindingIndicator = ({ segment }: { segment: TextSegment }) => {
+  const { t } = useTranslation()
+  const { sanityFindingsBySegmentId } = useDocument()
+  const findings = sanityFindingsBySegmentId.get(segment.id)
+  if (!findings || findings.length === 0) return null
+  const hasBlocker = findings.some((finding) => finding.severity === 'blocker')
+  return (
+    <span title={sanityFindingsTooltip(findings, t)}>
+      <AlertCircle className={`h-4 w-4 shrink-0 ${hasBlocker ? 'text-red-500' : 'text-amber-500'}`} />
+    </span>
   )
 }
 

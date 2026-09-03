@@ -1,10 +1,16 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { UnsavedChangesDialog } from '@/components/outliner/UnsavedChangesDialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useOutlinerDocument } from '@/hooks/useOutlinerDocument'
 import { useAITextEndings } from '@/hooks/useAITextEndings'
-import { outlinerSegmentToTextSegment } from '@/api/outliner'
+import {
+  outlinerSegmentToTextSegment,
+  checkDocumentSanity,
+  type SanityCheckSegmentInput,
+  type SanityCheckFinding,
+} from '@/api/outliner'
 import type {
   TextSegment,
   BubbleMenuState,
@@ -67,7 +73,52 @@ const OutlinerWorkspace: React.FC = () => {
     () => backendSegments.map((s) => outlinerSegmentToTextSegment(s, currentTextContent)),
     [backendSegments, currentTextContent]
   )
-  
+
+  // On-demand segmentation sanity check (top toolbar button + per-segment alert icons share
+  // this one result so they never disagree; it's not run automatically on every edit).
+  const sanityCheckSegments: SanityCheckSegmentInput[] = useMemo(
+    () =>
+      currentSegments
+        .filter((segment) => typeof segment.span_start === 'number' && typeof segment.span_end === 'number')
+        .map((segment) => ({
+          id: segment.id,
+          start: segment.span_start as number,
+          end: segment.span_end as number,
+          label: segment.label ?? null,
+        })),
+    [currentSegments]
+  )
+
+  const sanityQuery = useQuery({
+    queryKey: ['outliner-document-sanity-check', documentId],
+    queryFn: ({ signal }) => checkDocumentSanity(documentId!, sanityCheckSegments, signal),
+    enabled: false,
+    retry: 1,
+  })
+
+  const sanityReport = sanityQuery.data ?? null
+
+  const sanityFindingsBySegmentId = useMemo(() => {
+    const map = new Map<string, SanityCheckFinding[]>()
+    for (const finding of sanityReport?.findings ?? []) {
+      const existing = map.get(finding.segment_id)
+      if (existing) {
+        existing.push(finding)
+      } else {
+        map.set(finding.segment_id, [finding])
+      }
+    }
+    return map
+  }, [sanityReport])
+
+  const sanityQueryRefetch = sanityQuery.refetch
+  const handleCheckSanity = useCallback(() => {
+    if (documentId) {
+      sanityQueryRefetch()
+    }
+  }, [documentId, sanityQueryRefetch])
+
+
   const [expandedSegmentIds, setExpandedSegmentIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -824,6 +875,10 @@ const OutlinerWorkspace: React.FC = () => {
         aiTextEndingLoading: aiTextEndings.isLoading,
         segmentLoadingStates: segmentLoadingStates || new Map(),
         isUploading: isLoadingDocument || isSaving,
+        sanityReport,
+        sanityFindingsBySegmentId,
+        isCheckingSanity: sanityQuery.isFetching,
+        sanityCheckFailed: sanityQuery.isError,
       }}
     >
       <SelectionProvider
@@ -857,6 +912,7 @@ const OutlinerWorkspace: React.FC = () => {
               onLoadNewFile: () => {},
               onSegmentStatusUpdate: handleSegmentStatusUpdate,
               onResetSegments: resetSegmentsBackend,
+              onCheckSanity: handleCheckSanity,
             }}
           >
             <div className="flex flex-col bg-gray-50" style={{ height: 'calc(100vh - 4rem)' }}>

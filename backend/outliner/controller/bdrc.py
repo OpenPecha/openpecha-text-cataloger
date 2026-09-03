@@ -29,6 +29,11 @@ from outliner.controller.document import (
     save_annotator_ai_final_segments,
     update_document_status,
 )
+from outliner.controller.sanity_check import (
+    normalize_sanity_check_segments,
+    run_sanity_check,
+    segments_for_sanity_check,
+)
 
 # BDRC bulk sync progress: append-only log next to backend package (backend/sync_status.txt).
 _SYNC_STATUS_LOG_PATH = Path(__file__).resolve().parents[2] / "sync_status.txt"
@@ -200,16 +205,53 @@ def enqueue_push_document_segments_to_bdrc(
             session.close()
 
 
+async def check_document_sanity(
+    db: Session, document_id: str, segments: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Run the segmentation sanity-check linter against caller-supplied segment spans.
+
+    ``segments`` comes from the frontend editor (the spans/labels currently shown there);
+    only the document's full text is read from the database. Read-only: submits nothing.
+    Meant to be called up front (e.g. when the annotator opens the "Submit to Review"
+    dialog) so they see every issue before deciding whether to fix segments or submit
+    anyway, rather than only finding out after attempting to submit.
+    """
+    document = get_document(db, document_id, include_segments=False)
+    sanity_report = run_sanity_check(
+        document.content, normalize_sanity_check_segments(segments), volume_id=document.id
+    )
+    if sanity_report is None:
+        return {"flagged_count": 0, "blocker_count": 0, "advisory_count": 0, "findings": []}
+    return sanity_report
+
+
 async def submit_document_to_bdrc_in_review(
-    db: Session, document_id: str, is_complete: bool = True
+    db: Session, document_id: str, is_complete: bool = True, ignore_sanity_warnings: bool = False
 ) -> Dict[str, Any]:
     """Queue BDRC in_review push in background, then set document status to completed.
 
     ``is_complete`` is False when the annotator marked the scanned volume as missing
     pages; it is persisted before queueing so the background push reads it back.
+
+    Before submitting, the segmentation is run through the sanity-check linter. If it
+    flags anything and ``ignore_sanity_warnings`` isn't set, submission is held and the
+    report is returned so the caller can warn the annotator and let them either fix the
+    segments or resubmit with the warning acknowledged.
     """
     document = get_document(db, document_id, include_segments=True)
     _validate_document_has_bdrc_volume(document)
+
+    if not ignore_sanity_warnings:
+        sanity_report = run_sanity_check(
+            document.content, segments_for_sanity_check(document), volume_id=document.id
+        )
+        if sanity_report and sanity_report.get("flagged_count"):
+            return {
+                "success": False,
+                "requires_confirmation": True,
+                "sanity_report": sanity_report,
+            }
+
     # Must land before enqueue: the worker re-reads the document in its own session.
     outliner_repo.set_document_is_complete(db, document_id, is_complete)
     enqueue_push_document_segments_to_bdrc(document_id, "in_review", db=db)

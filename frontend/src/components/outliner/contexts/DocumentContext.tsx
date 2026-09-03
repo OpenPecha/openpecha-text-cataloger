@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react'
 import type { TextSegment } from '../types'
+import type { SanityCheckFinding, SanityCheckReport } from '@/api/outliner'
 
 interface DocumentContextValue {
   textContent: string
@@ -17,6 +18,12 @@ interface DocumentContextValue {
   aiTextEndingLoading: boolean
   segmentLoadingStates: Map<string, boolean>
   isUploading?: boolean
+  /** Result of the last on-demand sanity check (null until one has been run). */
+  sanityReport: SanityCheckReport | null
+  /** Sanity-check findings grouped by segment_id, for per-segment alert icons. */
+  sanityFindingsBySegmentId: Map<string, SanityCheckFinding[]>
+  isCheckingSanity: boolean
+  sanityCheckFailed: boolean
 }
 
 const DocumentContext = createContext<DocumentContextValue | null>(null)

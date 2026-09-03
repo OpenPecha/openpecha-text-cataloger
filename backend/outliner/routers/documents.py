@@ -10,6 +10,7 @@ from outliner.controller.segment_review import (
     get_segment_review_statuses as get_segment_review_statuses_ctrl,
 )
 from outliner.repository.document import fetch_document_by_id, fetch_document_reviewer_id
+from outliner.controller.bdrc import check_document_sanity as check_document_sanity_ctrl
 from outliner.controller.outliner import (
     approve_document as approve_document_ctrl,
     assign_document_reviewer as assign_document_reviewer_ctrl,
@@ -63,6 +64,7 @@ from .schemas import (
     RandomReviewedDocumentIdsResponse,
     DocumentStatusUpdate,
     DocumentWorkspaceResponse,
+    SanityCheckRequest,
     SegmentCreate,
     SegmentResponse,
     SegmentReviewsResponse,
@@ -482,6 +484,29 @@ async def get_segment_reviews(
     )
 
 
+@router.post("/documents/{document_id}/sanity-check")
+async def post_document_sanity_check(
+    document_id: str,
+    payload: SanityCheckRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_outliner_access),
+):
+    """Run the segmentation sanity check against segment spans supplied by the caller.
+
+    The document's full text is read from the database; the segment spans/labels come
+    from the request body (the frontend sends what's currently in the editor) rather than
+    being re-read from the DB, so the check reflects exactly what the annotator sees.
+    Read-only: does not submit anything. Meant to be called before showing the submit
+    confirmation, so the annotator sees every flagged issue up front.
+    """
+    doc = fetch_document_by_id(db, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    assert_assigned_document_annotator(doc.user_id, current_user)
+    segments = [segment.model_dump() for segment in payload.segments]
+    return await check_document_sanity_ctrl(db, document_id, segments)
+
+
 @router.post("/documents/{document_id}/submit-bdrc-in-review")
 async def submit_document_to_bdrc_in_review(
     document_id: str,
@@ -499,7 +524,10 @@ async def submit_document_to_bdrc_in_review(
         raise HTTPException(status_code=404, detail="Document not found")
     assert_assigned_document_annotator(doc.user_id, current_user)
     is_complete = payload.is_complete if payload is not None else True
-    return await submit_document_to_bdrc_in_review_ctrl(db, document_id, is_complete)
+    ignore_sanity_warnings = payload.ignore_sanity_warnings if payload is not None else False
+    return await submit_document_to_bdrc_in_review_ctrl(
+        db, document_id, is_complete, ignore_sanity_warnings
+    )
 
 
 @router.post("/documents/{document_id}/approve")

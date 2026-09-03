@@ -574,7 +574,16 @@
       "skipFailed": "跳过文档失败：{{message}}",
       "confirmSkip": "确定要跳过此文档吗？",
       "submitNotSaved": "尚有 {{count}} 个片段未保存",
-      "submitNotSaved_plural": "尚有 {{count}} 个片段未保存"
+      "submitNotSaved_plural": "尚有 {{count}} 个片段未保存",
+      "sanityCheck": {
+        "button": "健全性检查",
+        "buttonTitle": "对当前分段运行健全性检查",
+        "dialogTitle": "健全性检查",
+        "noIssuesTitle": "未发现问题",
+        "noIssuesDescription": "健全性检查未发现任何分段问题。",
+        "resultsDescription": "发现 {{blockerCount}} 个阻断性问题和 {{advisoryCount}} 个建议性问题。",
+        "checkFailed": "无法运行健全性检查，请重试。"
+      }
     },
     "expand": {
       "expandAll": "全部展开",
@@ -596,7 +605,24 @@
       "confirmTitle": "提交审核",
       "confirmDescription": "此卷将被提交审核。",
       "incompleteLabel": "此卷不完整",
-      "incompleteHint": "扫描件的开头和/或结尾缺页。"
+      "incompleteHint": "扫描件的开头和/或结尾缺页。",
+      "sanityWarning": {
+        "title": "发现分段问题",
+        "description": "健全性检查在此卷的分段中发现 {{blockerCount}} 个阻断性问题和 {{advisoryCount}} 个建议性问题。您可以返回修改分段，或仍然提交。",
+        "checking": "正在检查分段…",
+        "checkFailed": "无法运行健全性检查；您仍可以提交。",
+        "goBack": "返回",
+        "submitAnyway": "仍然提交",
+        "charSpan": "字符 {{start}}–{{end}}",
+        "severity": {
+          "blocker": "阻断",
+          "advisory": "建议"
+        },
+        "errorType": {
+          "over_segmentation": "过度分段",
+          "under_segmentation": "分段不足"
+        }
+      }
     },
     "upload": {
       "uploading": "正在上传文档..."

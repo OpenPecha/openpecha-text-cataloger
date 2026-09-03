@@ -198,12 +198,34 @@ class SegmentReviewRequest(BaseModel):
     comment: str | None = None
 
 
+class SanityCheckSegmentInput(BaseModel):
+    """One segment span to run through the sanity-check linter, as currently shown in the editor."""
+
+    id: str
+    start: int = Field(..., description="Character offset into the document text (inclusive)")
+    end: int = Field(..., description="Character offset into the document text (exclusive)")
+    label: Optional[str] = Field(
+        None, description="Segment label, e.g. TEXT; only TEXT segments are checked"
+    )
+
+
+class SanityCheckRequest(BaseModel):
+    """Segment spans to sanity-check. Sent by the frontend so the check reflects exactly
+    what's currently in the editor, rather than re-reading (possibly stale) DB rows."""
+
+    segments: List[SanityCheckSegmentInput]
+
+
 class SubmitToBdrcRequest(BaseModel):
     """Annotator's submit-to-review decision, including whether the scan is complete."""
 
     is_complete: bool = Field(
         True,
         description="False when the scanned volume is missing pages at the beginning and/or end",
+    )
+    ignore_sanity_warnings: bool = Field(
+        False,
+        description="Skip the segmentation sanity-check gate (annotator chose to submit despite warnings)",
     )
 
 

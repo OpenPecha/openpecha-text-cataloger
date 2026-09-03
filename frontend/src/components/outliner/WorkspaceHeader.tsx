@@ -9,6 +9,7 @@ import {  useDocument } from './contexts';
 import WorkSpaceHeaderMenu from './workspace/WorkSpaceHeaderMenu';
 import AIDetectionButton from './workspace/AIDetectionButton';
 import ActionButton from './workspace/ActionButton';
+import SanityCheckButton from './workspace/SanityCheckButton';
 
 
 
@@ -56,6 +57,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <AIDetectionButton/>
         <WorkSpaceHeaderMenu/>
+        <SanityCheckButton/>
         <ActionButton/>
           {tocPanel && (
             <Button

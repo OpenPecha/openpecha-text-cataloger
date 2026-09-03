@@ -574,7 +574,16 @@
       "skipFailed": "Failed to skip document: {{message}}",
       "confirmSkip": "Are you sure you want to skip this document?",
       "submitNotSaved": "{{count}} segment not yet saved",
-      "submitNotSaved_plural": "{{count}} segments not yet saved"
+      "submitNotSaved_plural": "{{count}} segments not yet saved",
+      "sanityCheck": {
+        "button": "Sanity Check",
+        "buttonTitle": "Run the segmentation sanity check on the current segments",
+        "dialogTitle": "Sanity Check",
+        "noIssuesTitle": "No issues found",
+        "noIssuesDescription": "The sanity check didn't find any segmentation issues.",
+        "resultsDescription": "{{blockerCount}} blocking and {{advisoryCount}} advisory issue(s) found.",
+        "checkFailed": "Could not run the sanity check. Please try again."
+      }
     },
     "expand": {
       "expandAll": "Expand All",
@@ -596,7 +605,24 @@
       "confirmTitle": "Submit to Review",
       "confirmDescription": "This volume will be sent for review.",
       "incompleteLabel": "This volume is incomplete",
-      "incompleteHint": "Pages are missing at the beginning and/or the end of the scan."
+      "incompleteHint": "Pages are missing at the beginning and/or the end of the scan.",
+      "sanityWarning": {
+        "title": "Segmentation issues found",
+        "description": "The sanity check found {{blockerCount}} blocking and {{advisoryCount}} advisory issue(s) in this volume's segmentation. You can go back and fix the segments, or submit anyway.",
+        "checking": "Checking segmentation…",
+        "checkFailed": "Could not run the sanity check; you can still submit.",
+        "goBack": "Go Back",
+        "submitAnyway": "Submit Anyway",
+        "charSpan": "chars {{start}}–{{end}}",
+        "severity": {
+          "blocker": "Blocker",
+          "advisory": "Advisory"
+        },
+        "errorType": {
+          "over_segmentation": "Over-segmentation",
+          "under_segmentation": "Under-segmentation"
+        }
+      }
     },
     "upload": {
       "uploading": "Uploading document..."
