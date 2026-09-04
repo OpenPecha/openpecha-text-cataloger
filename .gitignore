@@ -9,4 +9,5 @@ __pycache__
 dependencies
 backend/dependencies
 outliner_cleaner
+fix_part_type
 sync_status.txt

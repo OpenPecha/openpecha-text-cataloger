@@ -36,14 +36,34 @@ from outliner.controller.sanity_check import (
 )
 from outliner.models.segment_enums import SegmentLabels
 
-# BDRC part_type derived from the annotator's segment label. Falls back to the previous
-# wa_id-based guess (see _push_document_segments_to_bdrc) for segments left unlabeled.
+# BDRC part_type derived purely from the annotator's segment label - unlabeled defaults
+# to "text". Note BDRC rejects part_type="text" without a non-empty wa_id, so a
+# TEXT/unlabeled segment not yet linked to a catalog work (wa_id) will fail that push.
 _LABEL_TO_PART_TYPE = {
     SegmentLabels.TEXT: "text",
     SegmentLabels.FRONT_MATTER: "editorial",
     SegmentLabels.BACK_MATTER: "editorial",
-    SegmentLabels.TOC: "toc",
+    SegmentLabels.TOC: "TOC",
 }
+
+
+def _part_type_for_segment(label: Optional[SegmentLabels]) -> str:
+    return _LABEL_TO_PART_TYPE.get(label, "text")
+
+
+def _base_text_from_chunks(volume: Dict[str, Any]) -> str:
+    """Reconstruct base_text from BDRC's own chunks, same as assign_volume() above.
+
+    BDRC validates a pushed base_text against the concatenation of its own chunks for
+    the volume, and can re-OCR/re-chunk a volume after document.content was last saved
+    here - sending document.content directly can then fail that check ("base_text must
+    exactly match the concatenation of chunks") even when it happens to be the same
+    length as BDRC's current text. Building base_text from volume["chunks"] (BDRC's
+    current state, just fetched via get_volume) can't trip that check, by construction.
+    """
+    return "".join(
+        chunk["text_bo"] for chunk in volume.get("chunks", []) if chunk.get("text_bo") is not None
+    )
 
 # BDRC bulk sync progress: append-only log next to backend package (backend/sync_status.txt).
 _SYNC_STATUS_LOG_PATH = Path(__file__).resolve().parents[2] / "sync_status.txt"
@@ -124,7 +144,19 @@ async def _push_document_segments_to_bdrc(
     rep_id = volume["rep_id"]
     vol_id = volume["vol_id"]
     vol_version = volume["vol_version"]
-    base_text = document.content
+    base_text = _base_text_from_chunks(volume)
+    if base_text != document.content:
+        # document.content (and therefore the segment span_start/span_end used below)
+        # was computed against an older snapshot of this volume's text than BDRC has
+        # now - the push still succeeds since base_text is BDRC's current chunk text,
+        # but cstart/cend may no longer point at the right passage. Needs a re-sync of
+        # document.content from BDRC's chunks and re-segmentation to fix properly.
+        logger.warning(
+            "BDRC push volume_id=%s document_id=%s: document.content diverged from "
+            "BDRC's current chunks - base_text sent is BDRC's chunk text, but existing "
+            "segment cstart/cend were computed against the stale document.content",
+            volume_id, document.id,
+        )
     db_segments = document.segments
     segment_inputs = []
     for segment in db_segments:
@@ -133,8 +165,11 @@ async def _push_document_segments_to_bdrc(
         segment_title = segment.reviewer_title if segment.reviewer_title is not None else (segment.title or "")
         segment_author = segment.reviewer_author if segment.reviewer_author is not None else (segment.author or "")
         mw_id = f'{volume["mw_id"]}_{segment.id}'
-        wa_id = segment.title_bdrc_id or ''
-        part_type = _LABEL_TO_PART_TYPE.get(segment.label, "text" if wa_id != '' else "editorial")
+        # BDRC rejects part_type="text" with an empty wa_id ("wa_id is mandatory when
+        # part_type is 'text'") - "incomplete" is a placeholder for a segment not yet
+        # linked to a catalog work, so the push isn't blocked while that's pending.
+        wa_id = segment.title_bdrc_id or 'incomplete'
+        part_type = _part_type_for_segment(segment.label)
         segment_inputs.append(SegmentInput(
             cstart=segment_start,
             cend=segment_end,
