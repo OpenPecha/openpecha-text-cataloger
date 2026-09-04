@@ -19,7 +19,12 @@ pydantic[email]
 
 # --- NLP / Tibetan ---
 botok
-pyewts
+# pyewts is installed separately in the Dockerfile (--no-build-isolation, with
+# setuptools<81 pinned) since its legacy setup.py needs pkg_resources, which newer
+# setuptools no longer ships - listing it here too gets it force-reinstalled by
+# `pip install --force-reinstall -r requirements.txt` without that workaround, which
+# then fails to build against the latest (unpinned) setuptools pip's isolated build
+# env fetches.
 
 # --- Utilities ---
 PyJWT[crypto]
